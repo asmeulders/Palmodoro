@@ -4,15 +4,18 @@
     <meta charset="utf-8" />
     <title>Task Manager</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="../popup/styles/page4.css" />
+    <link rel="stylesheet" href="../styles/page4.css" />
 </head>
 <body>
-<!-- Top Bar -->
-<div class="topbar">
-    <button class="back-btn" id="closeBtn" type="button">Back</button>
-    <span class="title">Task Manager</span>
-    <span class="spacer"></span>
-</div>
+
+ <header class="page-header">
+    <div class="header-row">
+    <div class="header-left"><a class="back-link" href="../popup.html">Back</a></div>
+    <div class="header-center"><h2>Task Manager</h2></div>
+    <div class="header-right"></div>
+    </div>
+</header>
+
 
 <!-- Main Content -->
 <div class="content">
@@ -25,6 +28,6 @@
     <div id="list" class="list" role="list"></div>
 </div>
 
-<script src="../scripts/page4.js"></script>
+<script src="./scripts/page4.js"></script>
 </body>
 </html>

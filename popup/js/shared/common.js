@@ -77,6 +77,7 @@ class PopupUtils {
   // URL and domain utilities
   static extractDomain(url) {
     try {
+      console.log("Extracting domain from " + url);
       const urlObj = new URL(url);
       return urlObj.hostname.replace(/^www\./, '');
     } catch (error) {
