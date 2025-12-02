@@ -1,9 +1,3 @@
-// ---------- CLOSE BUTTON ----------
-document.getElementById("closeBtn")?.addEventListener("click", () => {
-    // Tell popup.js to close iframe and show grid
-    parent.postMessage({ type: "closePanel" }, "*");
-});
-
 // ---------- CHROME STORAGE HELPERS ----------
 function storageGet(key) {
     return new Promise((resolve) => {

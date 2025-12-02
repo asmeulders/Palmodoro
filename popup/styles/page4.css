@@ -11,6 +11,25 @@ body,
 .empty {
     font-family: "RainyHearts", monospace;
 }
+.page-header { flex: 0 0 auto; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; min-height: 36px; }
+    .header-left { flex: 0 0 auto; margin-right: 8px; }
+    .header-center { flex: 1 1 auto; display:flex; justify-content:center; }
+    .header-center h2 { font-size: 15px; margin: 0; line-height: 1.2; }
+    .header-right { flex: 0 0 auto; }
+    .back-link { 
+      color: var(--text-light); 
+      text-decoration: none; 
+      font-size: 12px; 
+      background: rgba(255,255,255,0.08); 
+      padding: 4px 8px; 
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      line-height: 1;
+      margin: 4px;
+    }
 
 
 :root {

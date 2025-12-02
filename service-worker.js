@@ -1,5 +1,3 @@
-import { DomainManagerLogic, domainManagerLogic  } from './popup/js/domain-manager-logic.js';
-
 console.log('🔧 Pomodoro Service Worker with Study Teacher starting up...');
 
 // StudyFocusManager functionality (inline implementation)
@@ -104,10 +102,12 @@ async function loadGeminiApiKey() {
     
     // Try to load from config.json
     const response = await fetch(chrome.runtime.getURL('config.json'));
+    console.log(response)
     const config = await response.json();
     
-    if (config.geminiApiKey && geminiApiKey.trim()) {
-      geminiApiKey = config.geminiApiKey.trim();
+    console.log(config.geminiApiKey)
+    if (config.geminiApiKey) { // && geminiApiKey.trim()) {
+      geminiApiKey = config.geminiApiKey;// .trim();
       await chrome.storage.local.set({ geminiApiKey: geminiApiKey });
       console.log('🔑 API key loaded from config.json and stored in Chrome storage');
     } else {
@@ -502,23 +502,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // Study chat functionality
-  if (request.action === 'addWorkDomain') {
-    domainManagerLogic.add(request.domain)
-      .then(() => sendResponse({ success: true }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    domainManagerUI
-    return true;
-  }
+  // // Study chat functionality --- This does not work because in the background we cannot access document and add() is in document-manager.js. come back to later
+  // if (request.action === 'addWorkDomain') {
+  //   add(request.domain)
+  //     .then(() => sendResponse({ success: true }))
+  //     .catch(err => sendResponse({ success: false, error: err.message }));
+  //   return true;
+  // }
 
-  // Study chat functionality
-  if (request.action === 'goBack') {
-    domainManagerLogic.add(request.domain)
-      .then(() => sendResponse({ success: true }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    domainManagerUI
-    return true;
-  }
+  // // Study chat functionality
+  // if (request.action === 'goBack') {
+  //   add(request.domain)
+  //     .then(() => sendResponse({ success: true }))
+  //     .catch(err => sendResponse({ success: false, error: err.message }));
+  //   return true;
+  // }
 });
 
 // Initialize when service worker starts
