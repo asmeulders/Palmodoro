@@ -6,7 +6,13 @@ async function load() {
 }
 
 async function save() {
-  await chrome.storage.local.set({ workDomains: workDomains });
+  try {
+    await PopupUtils.setStorage({ workDomains: workDomains });
+    return true;
+  } catch (error) {
+    PopupUtils.logError('Failed to save work domains:', error);
+    throw error;
+  }
 }
 
 export async function add(domain) {
@@ -54,28 +60,16 @@ function validateDomainInput() {
   }
 }
 
-async function saveWorkDomains() {
-  try {
-    await PopupUtils.setStorage({ workDomains: workDomains });
-    return true;
-  } catch (error) {
-    PopupUtils.logError('Failed to save work domains:', error);
-    throw error;
-  }
-}
-
-async function addManualDomain() {
-  const input = document.getElementById('domainInput');
-  if (!input) return;
-
-  const domain = input.value.trim().toLowerCase();
-  
+async function addDomain(url) {
+  const domain = PopupUtils.extractDomain(url);
+  console.log(`Adding domain: ${domain}`);
   if (!domain) {
     PopupUtils.showError('Please enter a domain');
     return;
   }
 
   if (!PopupUtils.isValidDomain(domain)) {
+    console.log('Please enter a valid domain format')
     PopupUtils.showError('Please enter a valid domain format');
     return;
   }
@@ -87,7 +81,7 @@ async function addManualDomain() {
 
   try {
     workDomains.push(domain);
-    await saveWorkDomains();
+    await save();
     
     // Notify background script
     await PopupUtils.sendMessage({
@@ -95,14 +89,27 @@ async function addManualDomain() {
       domain: domain
     });
 
-    input.value = '';
-    validateDomainInput();
+    
     PopupUtils.showSuccess(`Added "${domain}" to work domains`);
     // updateUI();
   } catch (error) {
-    PopupUtils.logError('Failed to add manual domain:', error);
+    console.log(`'Failed to add domain: ${error}`)
+    PopupUtils.logError('Failed to add domain:', error);
     PopupUtils.showError('Failed to add domain. Please try again.');
   }
+}
+
+async function addManualDomain() {
+  console.log("Adding domain manually.")
+  const input = document.getElementById('domainInput');
+  if (!input) return;
+
+  const url = input.value.trim().toLowerCase();
+  
+  await addDomain(url);
+
+  input.value = '';
+  validateDomainInput();
 }
 
 async function initUI() {
@@ -124,6 +131,17 @@ function setupEventListeners() {
     }
   });
 
+  document.getElementById('addCurrentDomain').addEventListener('click', async () => {
+    const url = await getCurrentTabUrl();
+    addDomain(url);
+    updateWorkDomains();
+  });
+
+  document.getElementById('clearAll').addEventListener('click', async () => {
+    clearAll();
+    updateWorkDomains();
+  });
+
   // Manual domain input
   const domainInput = document.getElementById('domainInput');
   const addBtn = document.getElementById('addDomain');
@@ -132,7 +150,6 @@ function setupEventListeners() {
     addBtn.addEventListener('click', () => {
       addManualDomain();
       updateWorkDomains();
-      console.log("added");
     });
     domainInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
@@ -150,6 +167,7 @@ function updateDomainsList() {
   if (!domainsList) return;
 
   if (workDomains.length === 0) {
+    console.log(workDomains.length);
     domainsList.innerHTML = `
       <div class="empty-domains">
         <span class="empty-domains-icon">🌐</span>
@@ -216,7 +234,6 @@ async function updateCurrentTabDisplay() {
 function updateWorkDomains() {
   updateDomainsList();
   const container = document.getElementById('workDomains');
-  container.innerHTML = '';
   console.log(workDomains);
   if (workDomains.length !== 0) {
     workDomains.forEach(domain => {
