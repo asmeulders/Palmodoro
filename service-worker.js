@@ -1,22 +1,6 @@
-console.log('🔧 Pomodoro Service Worker with Study Teacher starting up...');
-
 // StudyFocusManager functionality (inline implementation)
 let studyFocusManager = null;
 let geminiApiKey = null;
-
-// Pomodoro Timer State - ALL logic lives here
-let timerState = {
-  isRunning: false,
-  isPaused: false,
-  phase: 'work', // 'work' or 'break'
-  startTime: null,
-  endTime: null,
-  duration: 0,
-  workDuration: 25 * 60, // 25 minutes in seconds
-  breakDuration: 5 * 60,  // 5 minutes in seconds
-  workDomains: [],        // Domains designated as work-related
-  activeTabId: null       // Track active tab during work sessions
-};
 
 const ALARM_NAME = 'pomodoroTimer';
 
@@ -91,21 +75,11 @@ Now help them learn! 🚀`;
 
 // Load Gemini API key
 async function loadGeminiApiKey() {
-  try {
-    // First check Chrome storage
-    // const storageResult = await chrome.storage.local.get(['geminiApiKey']);
-    // if (storageResult.geminiApiKey) {
-    //   geminiApiKey = storageResult.geminiApiKey;
-    //   console.log('🔑 API key loaded from Chrome storage', geminiApiKey);
-    //   return;
-    // }
-    
+  try {    
     // Try to load from config.json
     const response = await fetch(chrome.runtime.getURL('config.json'));
-    console.log(response)
     const config = await response.json();
     
-    console.log(config.geminiApiKey)
     if (config.geminiApiKey) { // && geminiApiKey.trim()) {
       geminiApiKey = config.geminiApiKey;// .trim();
       await chrome.storage.local.set({ geminiApiKey: geminiApiKey });
@@ -206,7 +180,7 @@ async function handleStudyQuestion(question) {
 // ===================
 
 // Tab monitoring for distraction detection
-async function handleTabSwitch(tabId) {
+async function handleTabSwitch(tabId) { // TODO
   try {
     // Only monitor during work sessions
     if (!timerState.isRunning || timerState.phase !== 'work') {
@@ -277,115 +251,10 @@ async function showDistractionAlert(tabId, domain) {
   }
 }
 
-// Initialize timer state from storage on startup
-async function initializeTimer() {
-  try {
-    const result = await chrome.storage.local.get(['pomodoroState']);
-    if (result.pomodoroState) {
-      timerState = { ...timerState, ...result.pomodoroState };
-      console.log('📂 Loaded timer state from storage:', timerState);
-      
-      // Check if we need to resume or complete a running timer
-      if (timerState.isRunning && timerState.endTime) {
-        const now = Date.now();
-        if (now >= timerState.endTime) {
-          console.log('⏰ Timer expired while service worker was inactive');
-          await completeCurrentSession();
-        } else {
-          console.log('▶️ Resuming active timer');
-          setupAlarm();
-        }
-      }
-    } else {
-      console.log('🆕 No previous timer state found - starting fresh');
-    }
-  } catch (error) {
-    console.error('❌ Failed to load timer state:', error);
-  }
-}
-
-// Save timer state to storage
-async function saveTimerState() {
-  try {
-    await chrome.storage.local.set({ pomodoroState: timerState });
-  } catch (error) {
-    console.error('❌ Failed to save timer state:', error);
-  }
-}
-
-// Start a new session (work or break)
-async function startSession(phase, duration) {
-  console.log(`🚀 Starting ${phase} session for ${duration} seconds`);
-  
-  const now = Date.now();
-  timerState = {
-    ...timerState,
-    isRunning: true,
-    isPaused: false,
-    phase: phase,
-    startTime: now,
-    endTime: now + (duration * 1000),
-    duration: duration,
-    activeTabId: phase === 'work' ? null : timerState.activeTabId,
-    workDomains: phase === 'work' ? [] : timerState.workDomains
-  };
-
-  await saveTimerState();
-  setupAlarm();
-  broadcastStateUpdate();
-  
-  console.log(`🎯 ${phase === 'work' ? 'Work session started - distraction alerts enabled' : 'Break session started'}`);
-}
-
-// Setup alarm for timer completion
-function setupAlarm() {
-  chrome.alarms.clear(ALARM_NAME);
-  
-  const alarmTime = new Date(timerState.endTime).getTime();
-  console.log(`⏰ Setting alarm for: ${new Date(alarmTime).toLocaleTimeString()}`);
-  
-  chrome.alarms.create(ALARM_NAME, { when: alarmTime });
-}
-
-// Broadcast state update to all listening popups
-function broadcastStateUpdate() {
-  const currentState = getCurrentState();
-  console.log('📡 Broadcasting state update:', currentState);
-  
-  // This will be caught by any open popup
-  chrome.runtime.sendMessage({
-    action: 'TIMER_STATE_UPDATE',
-    state: currentState
-  }).catch(() => {
-    // Silently ignore - no popup is open
-  });
-}
-
-// Complete the current session
-async function completeCurrentSession() {
-  console.log(`🎉 Session complete: ${timerState.phase}`);
-  
-  const completedPhase = timerState.phase;
-  
-  // Update state
-  await showCompletionTab(completedPhase);
-  
-  // Determine next phase and duration
-  const nextPhase = completedPhase === 'work' ? 'break' : 'work';
-  const nextDuration = nextPhase === 'work' ? timerState.workDuration : timerState.breakDuration;
-
-  console.log(`🔄 Auto-starting ${nextPhase} session for ${nextDuration} seconds`);
-  
-  // Start the next session automatically
-
-
-  await startSession(nextPhase, nextDuration);
-}
-
 // Show session completion tab
 async function showCompletionTab(phase) {
   try {
-    const url = chrome.runtime.getURL('timer-complete.html') + `?phase=${phase}`;
+    const url = chrome.runtime.getURL('./popup/pages/timer-complete.html') + `?phase=${phase}`;
     await chrome.tabs.create({ url: url });
     console.log('📄 Completion tab created');
   } catch (error) {
@@ -393,92 +262,13 @@ async function showCompletionTab(phase) {
   }
 }
 
-// Stop the timer completely
-async function stopTimer() {
-  console.log('🛑 Stopping timer');
-  
-  timerState.isRunning = false;
-  timerState.isPaused = false;
-  chrome.alarms.clear(ALARM_NAME);
-  
-  await saveTimerState();
-  broadcastStateUpdate();
-}
-
-// Get current timer state for popup
-function getCurrentState() {
-  if (!timerState.isRunning) {
-    return {
-      ...timerState,
-      timeRemaining: timerState.phase === 'work' ? timerState.workDuration : timerState.breakDuration
-    };
-  }
-  
-  const now = Date.now();
-  const timeRemaining = Math.max(0, Math.ceil((timerState.endTime - now) / 1000));
-  
-  return {
-    ...timerState,
-    timeRemaining: timeRemaining
-  };
-}
-
 // ===================
 // MESSAGE HANDLERS
 // ===================
 
-// Handle alarms (timer completion)
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM_NAME) {
-    console.log('⏰ Timer alarm triggered - completing session');
-    completeCurrentSession();
-  }
-});
-
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('📥 Service worker received message:', request);
-  
-  if (request.action === 'START_WORK_SESSION') {
-    startSession('work', request.duration || timerState.workDuration);
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  if (request.action === 'START_BREAK_SESSION') {
-    startSession('break', request.duration || timerState.breakDuration);
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  if (request.action === 'STOP_TIMER') {
-    stopTimer();
-    sendResponse({ success: true });
-    return true;
-  }
-  
-  if (request.action === 'GET_TIMER_STATE') {
-    const currentState = getCurrentState();
-    console.log('📤 Sending timer state to popup:', currentState);
-    sendResponse({ success: true, state: currentState });
-    return true;
-  }
-  
-  if (request.action === 'UPDATE_SETTINGS') {
-    timerState.workDuration = request.workDuration || timerState.workDuration;
-    timerState.breakDuration = request.breakDuration || timerState.breakDuration;
-    saveTimerState();
-    sendResponse({ success: true });
-    return true;
-  }
-
-  // Manual API key setup
-  if (request.action === 'setupGeminiApiKey') {
-    loadGeminiApiKey()
-      .then(() => sendResponse({ success: true, message: 'API key loaded successfully' }))
-      .catch(error => sendResponse({ success: false, error: error.message }));
-    return true;
-  }
 
   // Study chat functionality
   if (request.action === 'askStudyQuestion') {
@@ -501,30 +291,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
-
-  // // Study chat functionality --- This does not work because in the background we cannot access document and add() is in document-manager.js. come back to later
-  // if (request.action === 'addWorkDomain') {
-  //   add(request.domain)
-  //     .then(() => sendResponse({ success: true }))
-  //     .catch(err => sendResponse({ success: false, error: err.message }));
-  //   return true;
-  // }
-
-  // // Study chat functionality
-  // if (request.action === 'goBack') {
-  //   add(request.domain)
-  //     .then(() => sendResponse({ success: true }))
-  //     .catch(err => sendResponse({ success: false, error: err.message }));
-  //   return true;
-  // }
 });
 
 // Initialize when service worker starts
-initializeTimer();
 initializeStudyFocusManager();
-
-// Force load API key immediately
-loadGeminiApiKey();
 
 // Set up tab monitoring for distraction detection
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
@@ -538,5 +308,3 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await handleTabSwitch(tabId);
   }
 });
-
-console.log('✅ Pomodoro Service Worker with Professor StudyBot ready! 🎓');
