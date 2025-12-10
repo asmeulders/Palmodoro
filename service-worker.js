@@ -180,7 +180,16 @@ async function handleStudyQuestion(question) {
 // ===================
 
 // Tab monitoring for distraction detection
-async function handleTabSwitch(tabId) { // TODO
+async function handleTabSwitch(tabId) { 
+
+
+  // ============================================================================
+  // TODO: 
+        // timerState not defined - probably need to import from state since I
+        // deleted timer functionality. get from study-session.js
+  // ============================================================================
+  
+  
   try {
     // Only monitor during work sessions
     if (!timerState.isRunning || timerState.phase !== 'work') {

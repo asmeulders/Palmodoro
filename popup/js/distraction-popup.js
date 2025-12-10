@@ -95,14 +95,6 @@ function showDistractionAlert(domain) {
       overlay.remove();
     });
   }
-
-  // Auto-remove after 10 seconds
-  setTimeout(() => {
-    if (overlay.parentNode) {
-      console.log('Auto-removing overlay after timeout');
-      overlay.remove();
-    }
-  }, 10000);
   
   console.log('Overlay setup complete');
 }
