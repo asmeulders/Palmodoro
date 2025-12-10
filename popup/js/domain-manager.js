@@ -15,7 +15,7 @@ async function save() {
   }
 }
 
-export async function add(domain) {
+async function add(domain) {
   if (!workDomains.includes(domain)) {
     workDomains.push(domain);
     await save();
@@ -235,6 +235,7 @@ function updateWorkDomains() {
     });
   }
   updateCurrentTabDisplay();
+  
 }
 
 initUI();
