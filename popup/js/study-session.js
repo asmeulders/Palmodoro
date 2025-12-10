@@ -1,39 +1,39 @@
 // Study Session JavaScript functionality — wall-clock based, survives popup close
 // Now alternates Work ↔ Rest with random phase-complete messages
 // Enforces a minimum work duration of 10 seconds
-currentSession = null; // { type, startTime, endTime, duration, paused, pausedAt? }
-timer = null;          // UI repaint interval only
-isRunning = false;
-isPaused = false;
-timeRemaining = 0;     // seconds
-sessionType = 'pomodoro';
+let currentSession = null; // { type, startTime, endTime, duration, paused, pausedAt? }
+let timer = null;          // UI repaint interval only
+let isRunning = false;
+let isPaused = false;
+let timeRemaining = 0;     // seconds
+let sessionType = 'pomodoro';
 
 // Work/Rest phase tracking
-phase = 'work'; // 'work' | 'rest'
+let phase = 'work'; // 'work' | 'rest'
 
 // Fun messages
-workCompleteMsgs = [
-  "Great job! Time to recharge.",
-  "Nice focus session—grab some water!",
-  "You crushed it. Stretch time!",
-  "Deep breath—enjoy a short break.",
-];
-restCompleteMsgs = [
-  "Break’s over—let’s dive back in!",
-  "Refreshed? Back to it!",
-  "You’ve got this—time to focus.",
-  "Small steps, big wins—let’s go!",
-];
+const workCompleteMsgs = [
+    "Great job! Time to recharge.",
+    "Nice focus session—grab some water!",
+    "You crushed it. Stretch time!",
+    "Deep breath—enjoy a short break.",
+  ];
+const restCompleteMsgs = [
+    "Break’s over—let’s dive back in!",
+    "Refreshed? Back to it!",
+    "You’ve got this—time to focus.",
+    "Small steps, big wins—let’s go!",
+  ];
 
-settings = {
-  pomodoro: 25 * 60,  // work (seconds)
-  shortBreak: 5 * 60, // rest (seconds)
-  longBreak: 15 * 60, // unused for now
-  notifications: true
-};
+let settings = {
+    pomodoro: 25 * 60,  // work (seconds)
+    shortBreak: 5 * 60, // rest (seconds)
+    longBreak: 15 * 60, // unused for now
+    notifications: true
+  };
 
 // NEW: minimum work duration
-MIN_WORK_SECONDS = 10;
+const MIN_WORK_SECONDS = 10;
 
 async function init() {
   try {
@@ -412,27 +412,10 @@ function updateSessionControls() {
   }
 }
 
-function showNotification(title, message) {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, { body: message, icon: '../images/hello_extensions.png' });
-  } else if ('Notification' in window && Notification.permission !== 'denied') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        new Notification(title, { body: message, icon: '../images/hello_extensions.png' });
-      }
-    });
-  }
-}
-
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
 }
-
-// document.addEventListener('DOMContentLoaded', () => {
-//   const mgr = new StudySessionManager();
-//   window.studySessionManager = mgr; // expose for debugging
-// });
 
 init();

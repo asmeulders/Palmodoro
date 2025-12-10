@@ -1,8 +1,6 @@
 // StudyFocusManager functionality (inline implementation)
+const geminiApiKey = null;
 let studyFocusManager = null;
-let geminiApiKey = null;
-
-const ALARM_NAME = 'pomodoroTimer';
 
 // Study Teacher Configuration
 const encouragingPhrases = [
@@ -179,42 +177,55 @@ async function handleStudyQuestion(question) {
 // TIMER FUNCTIONALITY
 // ===================
 
-// Tab monitoring for distraction detection
-async function handleTabSwitch(tabId) { // TODO
+// Show distraction alert
+async function distractionAlertMessage(tab, domain) {
   try {
-    // Only monitor during work sessions
-    if (!timerState.isRunning || timerState.phase !== 'work') {
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url === '') {
+      console.log('Ignoring restricted browser page:', tab.url);
       return;
     }
+    console.log('Showing distraction alert for:', domain);
 
-    const tab = await chrome.tabs.get(tabId);
-    
-    // Skip internal Chrome pages
-    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-      console.log('⏭️ Skipping internal page:', tab.url);
-      return;
-    }
-
-    const domain = getDomainFromUrl(tab.url);
-    console.log('🌐 Current domain:', domain);
-
-    // If this is the first tab during work session, designate as work domain
-    if (timerState.activeTabId === null) {
-      timerState.activeTabId = tabId;
-      timerState.workDomains.push(domain);
-      await saveTimerState();
-      console.log('🎯 Designated work domain:', domain);
-      return;
-    }
-
-    // Check if current domain is in work domains
-    if (!timerState.workDomains.includes(domain)) {
-      console.log('⚠️ Potential distraction detected:', domain);
-      await showDistractionAlert(tabId, domain);
-    }
+    // Send message to show alert
+    await chrome.tabs.sendMessage(tab.id, {
+      action: 'showDistractionAlert',
+      domain: domain
+    });
 
   } catch (error) {
-    console.error('❌ Error handling tab switch:', error);
+    console.error('Error showing distraction alert:', error);
+  }
+}
+
+// Tab monitoring for distraction detection
+async function handleTabSwitch(tabId) {
+  // ============================================================================
+  // TODO: 
+  // - Move checking domain logic to distraction-popup.js
+  // - How will i handle the only during work session
+  // ============================================================================
+  try {
+    // Only monitor during work sessions
+    // if (!isRunning || phase !== 'work') {
+    //   return;
+    // }
+
+    const tab = await chrome.tabs.get(tabId);
+    const domain = getDomainFromUrl(tab.url);
+    console.log('Current domain:', domain);
+
+    chrome.storage.local.get(["workDomains"], (result) => {
+      const domains = result.workDomains || [];
+      
+      const isAllowed = domains.includes(domain);
+
+      if (!isAllowed) {
+        console.log("Blocked!");
+        distractionAlertMessage(tab, domain);
+      }
+    }); 
+  } catch (error) {
+    console.error('Error handling tab switch:', error);
   }
 }
 
@@ -226,28 +237,6 @@ function getDomainFromUrl(url) {
   } catch (error) {
     console.error('❌ Error parsing URL:', url, error);
     return '';
-  }
-}
-
-// Show distraction alert
-async function showDistractionAlert(tabId, domain) {
-  try {
-    console.log('🚨 Showing distraction alert for:', domain);
-    
-    // Inject content script to show alert
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId },
-      files: ['distraction-alert/distraction-content.js']
-    });
-
-    // Send message to show alert
-    await chrome.tabs.sendMessage(tabId, {
-      action: 'showDistractionAlert',
-      domain: domain
-    });
-
-  } catch (error) {
-    console.error('❌ Error showing distraction alert:', error);
   }
 }
 
@@ -295,6 +284,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Initialize when service worker starts
 initializeStudyFocusManager();
+
 
 // Set up tab monitoring for distraction detection
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
