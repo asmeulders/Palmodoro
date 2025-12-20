@@ -234,8 +234,9 @@ function getDomainFromUrl(url) {
 // ===========================================================================================
 // Background Timer
 // ===========================================================================================
-async function handleStartSession(currentSession) {
+async function setTimer() {
   let currentSession = await chrome.storage.local.get(['currentSession']);  
+  console.log("currentSession:", currentSession, currentSession.duration);
   chrome.alarms.create("pomodoroTimer", { delayInMinutes: currentSession.duration});
 
   // TODO: move these to callback
@@ -245,33 +246,11 @@ async function handleStartSession(currentSession) {
   //updateUI();
 }
 
-async function startWork() {
-  const phase = 'work';
-  try {
-    await chrome.storage.local.set({phase: phase}); // Need to update currentSession too
-  } catch (error) {
-    console.error('Failed to save session data:', error);
-  }
-  await startSession('pomodoro', getWorkDuration());
-}
-
-async function startRest() {
-  const phase = 'rest';
-  let activeSession = await chrome.storage.local.get(['activeSession']);
-
-  try {
-    await chrome.storage.local.set({ phase: phase }); // Need to update currentSession too
-  } catch (error) {
-    console.error('Failed to save session data:', error);
-  }
-  await startSession('shortBreak', activeSession.breakDuration);
-}
-
 // When a single phase finishes -> open new tab and auto-queue the next phase
 async function completeSession() {
   // isRunning = false;
   // isPaused = false;
-  const phase = await chrome.storage.local.get(['phase']);
+  currentSession, phase = await chrome.storage.local.get(['currentSession', 'phase']);
   
   
   // Open new tab instead of notification
@@ -282,9 +261,24 @@ async function completeSession() {
 
   // Chain to next phase immediately
   if (phase === 'work') {
-    await startRest();
+    phase = 'rest';
+    currentSession.duration = currentSession.settings.restDuration;
+    try {
+      await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
+    } catch (error) {
+      console.error('Failed to save session data:', error);
+    }
+    setTimer()
+
   } else {
-    await startWork();
+    phase = 'work';
+    currentSession.duration = currentSession.settings.workDuration;
+    try {
+      await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
+    } catch (error) {
+      console.error('Failed to save session data:', error);
+    }
+    setTimer()
   }
 }
 
@@ -335,7 +329,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "START-SESSION") {
-    handleStartSession()
+    setTimer()
       .then(answer => {
         console.log('Successfully started session');
         sendResponse({ success: true, answer });

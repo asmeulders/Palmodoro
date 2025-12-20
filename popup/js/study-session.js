@@ -30,7 +30,7 @@ const restCompleteMsgs = [
 
 let settings = {
     workDuration: 25,  // work (minutes)
-    breakDuration: 5, // rest (minutes)
+    restDuration: 5, // rest (minutes)
     notifications: true
   };
 
@@ -127,7 +127,7 @@ function setupEventListeners() {
     restTime.textContent = restSlider.value;
     restSlider.addEventListener('input', (event) => {
       restTime.textContent = event.target.value;
-      settings.breakDuration = parseInt(event.target.value, 10) * 60;
+      settings.restDuration = parseInt(event.target.value, 10) * 60;
       saveSettings();
     });
   }
@@ -197,7 +197,7 @@ function getWorkDuration() {
 }
 
 function getRestDuration() { 
-  return settings.breakDuration; 
+  return settings.restDuration; 
 }
 
 // ===========================================================================================
@@ -214,9 +214,11 @@ async function startSession() {
     console.log("Starting session with custome time:", settings.workDuration);
   }
 
-  let duration = (phase === "work") ? settings.workDuration : settings.breakDuration;
+  let duration = (phase === "work") ? settings.workDuration : settings.restDuration;
+  console.log("duration:", duration);
+  const now = Date.now()
   let currentSession = {
-    startTime: Date.now(),
+    startTime: now,
     endTime: now + (duration * 60000),
     duration: duration,
     paused: false,
