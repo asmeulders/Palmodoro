@@ -14,13 +14,6 @@ const encouragingPhrases = [
   "Perfect topic to dive into! 🚀"
 ];
 
-// Study session tracking
-let studySession = {
-  questionsAsked: 0,
-  subjects: [],
-  startTime: null
-};
-
 // Get random encouraging phrase
 function getEncouragingPhrase() {
   return encouragingPhrases[Math.floor(Math.random() * encouragingPhrases.length)];
@@ -180,18 +173,18 @@ async function handleStudyQuestion(question) {
 // Show distraction alert
 async function distractionAlertMessage(tab, domain) {
   try {
-    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url === '') {
-      console.log('Ignoring restricted browser page:', tab.url);
-      return;
-    }
+    if (!validSite(tab)) return;
     console.log('Showing distraction alert for:', domain);
 
     // Send message to show alert
     await chrome.tabs.sendMessage(tab.id, {
       action: 'showDistractionAlert',
       domain: domain
+    }, (response) =>{
+      if (response) {
+        console.log("Successfully shown alert")
+      }
     });
-
   } catch (error) {
     console.error('Error showing distraction alert:', error);
   }
@@ -202,16 +195,16 @@ async function handleTabSwitch(tabId) {
   // ============================================================================
   // TODO: 
   // - Move checking domain logic to distraction-popup.js
-  // - How will i handle the only during work session
   // ============================================================================
   try {
     // Only monitor during work sessions
     // if (!isRunning || phase !== 'work') {
     //   return;
     // }
-
     const tab = await chrome.tabs.get(tabId);
+    if (!validSite(tab)) return;
     const domain = getDomainFromUrl(tab.url);
+
     console.log('Current domain:', domain);
 
     chrome.storage.local.get(["workDomains"], (result) => {
@@ -233,10 +226,10 @@ async function handleTabSwitch(tabId) {
 function getDomainFromUrl(url) {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname;
+    return urlObj.hostname.replace(/^www\./, '');
   } catch (error) {
-    console.error('❌ Error parsing URL:', url, error);
-    return '';
+    console.error('Error parsing URL:', url, error);
+    return null;
   }
 }
 
@@ -282,6 +275,15 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+function validSite(tab){
+  if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://')) {
+    console.log('Ignoring restricted browser page:', tab.url);
+    return false;
+  }
+  return true;
+}
+
+
 // Initialize when service worker starts
 initializeStudyFocusManager();
 
@@ -298,3 +300,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await handleTabSwitch(tabId);
   }
 });
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "closeTab") {
+        // sender.tab.id is the ID of the tab that sent the message
+
+        let queryOptions = { active: true, lastFocusedWindow: true };
+        chrome.tabs.query(queryOptions, ([tab]) => {
+          if (tab) {
+            chrome.tabs.remove(tab.id);
+            console.log("Distracting tab closed:", tab.url);
+          }
+        });
+    }
+});
+

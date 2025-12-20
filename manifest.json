@@ -14,8 +14,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["./content_scripts/distraction.js"],
-      "run_at": "document_idle" 
+      "js": ["./content_scripts/distraction.js"]
     }
   ],
   "permissions": [
