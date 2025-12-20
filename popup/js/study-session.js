@@ -8,6 +8,10 @@ let isPaused = false;
 let timeRemaining = 0;     // seconds
 let sessionType = 'pomodoro';
 
+
+// ====================================================================================================
+// TODO: Move this functionality back to the service worker because this must run in the background.
+// ====================================================================================================
 // Work/Rest phase tracking
 let phase = 'work'; // 'work' | 'rest'
 

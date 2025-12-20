@@ -16,6 +16,7 @@ async function save() {
 }
 
 async function add(domain) {
+  
   if (!workDomains.includes(domain)) {
     workDomains.push(domain);
     await save();
@@ -23,6 +24,7 @@ async function add(domain) {
 }
 
 async function remove(domain) {
+  
   workDomains = workDomains.filter(d => d !== domain);
   await save();
   updateCurrentTabDisplay();
@@ -47,6 +49,8 @@ function validateDomainInput() {
     validation.className = 'domain-validation';
     return;
   }
+
+  
 
   if (PopupUtils.isValidDomain(domain)) {
     if (workDomains.includes(domain)) {
@@ -75,6 +79,8 @@ async function addDomain(url) {
     PopupUtils.showError('Please enter a valid domain format');
     return;
   }
+
+  
 
   if (workDomains.includes(domain)) {
     PopupUtils.showWarning('Domain already exists in work domains');
@@ -115,6 +121,7 @@ async function addManualDomain() {
 }
 
 async function initUI() {
+  console.log("Initializing domain manager popup UI.")
   await load();
   updateWorkDomains();
   updateCurrentTabDisplay();
@@ -130,6 +137,14 @@ function setupEventListeners() {
     const item = btn.closest('.domain-item');
     const domain = item.dataset.domain;
     await remove(domain);
+    
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.url ) {
+      const currentDomain = PopupUtils.extractDomain(tab.url);
+      if (!workDomains.includes(currentDomain)) {
+        chrome.tabs.remove(tab.id);
+      }
+    }
     updateWorkDomains();
   });
 
@@ -189,7 +204,11 @@ async function updateCurrentTabDisplay() {
   // Update add current domain button
   const addCurrentBtn = document.getElementById('addCurrentDomain');
   if (addCurrentBtn) {
-    if (domain && !workDomains.includes(domain)) {
+    if (!domain || domain.startsWith('chrome://') || domain.startsWith('chrome-extension://') || domain.startsWith('edge://')) {
+      addCurrentBtn.disabled = true;
+      addCurrentBtn.textContent = `Cannot Add Domain`;
+    }
+    else if (domain && !workDomains.includes(domain)) {
       addCurrentBtn.disabled = false;
       addCurrentBtn.textContent = `Add "${domain}" as Work`;
     } else if (domain && workDomains.includes(domain)) {
@@ -207,7 +226,8 @@ function updateWorkDomains() {
   if (!container) return;
 
   console.log(`Updating work domains of length ${workDomains.length}`);
-
+  
+  load();
   if (workDomains.length === 0) {
     container.innerHTML = `
       <div class="empty-domains">
@@ -239,4 +259,3 @@ function updateWorkDomains() {
 }
 
 initUI();
-setupEventListeners();

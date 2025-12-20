@@ -77,6 +77,11 @@ class PopupUtils {
   // URL and domain utilities
   static extractDomain(url) {
     try {
+      if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('edge://')) {
+        console.log('Ignoring restricted browser page:', url);
+        url = url.substring(0,18) + "...";
+        return url;
+      }
       console.log("Extracting domain from " + url);
       const urlObj = new URL(url);
       return urlObj.hostname.replace(/^www\./, '');
