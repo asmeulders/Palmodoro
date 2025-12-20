@@ -273,6 +273,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
     return true;
   }
+
+  if (message.action === "closeTab") {
+        // sender.tab.id is the ID of the tab that sent the message
+
+        let queryOptions = { active: true, lastFocusedWindow: true };
+        chrome.tabs.query(queryOptions, ([tab]) => {
+          if (tab) {
+            chrome.tabs.remove(tab.id);
+            console.log("Distracting tab closed:", tab.url);
+          }
+        });
+    }
 });
 
 function validSite(tab){
@@ -300,18 +312,3 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     await handleTabSwitch(tabId);
   }
 });
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "closeTab") {
-        // sender.tab.id is the ID of the tab that sent the message
-
-        let queryOptions = { active: true, lastFocusedWindow: true };
-        chrome.tabs.query(queryOptions, ([tab]) => {
-          if (tab) {
-            chrome.tabs.remove(tab.id);
-            console.log("Distracting tab closed:", tab.url);
-          }
-        });
-    }
-});
-
