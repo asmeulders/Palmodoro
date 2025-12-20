@@ -6,7 +6,6 @@ let timer = null;          // UI repaint interval only
 let isRunning = false;
 let isPaused = false;
 let timeRemaining = 0;     // seconds
-let sessionType = 'pomodoro';
 
 
 // ====================================================================================================
@@ -30,14 +29,13 @@ const restCompleteMsgs = [
   ];
 
 let settings = {
-    pomodoro: 25 * 60,  // work (seconds)
-    shortBreak: 5 * 60, // rest (seconds)
-    longBreak: 15 * 60, // unused for now
+    workDuration: 25,  // work (minutes)
+    breakDuration: 5, // rest (minutes)
     notifications: true
   };
 
 // NEW: minimum work duration
-const MIN_WORK_SECONDS = 10;
+const MIN_WORK_DURATION = 1;
 
 async function init() {
   try {
@@ -90,7 +88,6 @@ async function loadSessionData() {
 
     if (data.currentSession) {
       currentSession = data.currentSession;
-      sessionType = currentSession.type;
       // derive flags & remaining from wall clock
       refreshStateFromWallClock();
       if (currentSession) {
@@ -130,7 +127,7 @@ function setupEventListeners() {
     restTime.textContent = restSlider.value;
     restSlider.addEventListener('input', (event) => {
       restTime.textContent = event.target.value;
-      settings.shortBreak = parseInt(event.target.value, 10) * 60;
+      settings.breakDuration = parseInt(event.target.value, 10) * 60;
       saveSettings();
     });
   }
@@ -138,7 +135,7 @@ function setupEventListeners() {
   // Start button (HTML id is "startTimer")
   const startBtn = document.getElementById('startTimer');
   if (startBtn) {
-    startBtn.addEventListener('click', () => startCustomSession());
+    startBtn.addEventListener('click', () => startSession());
   }
 
   // Session controls
@@ -153,8 +150,6 @@ function setupEventListeners() {
   }
 }
 
-// --- Wall clock core -------------------------------------------------------
-
 function refreshStateFromWallClock() {
   if (!currentSession) {
     isRunning = false;
@@ -165,7 +160,6 @@ function refreshStateFromWallClock() {
   }
 
   const s = currentSession;
-  sessionType = s.type;
 
   let remainingMs;
   if (s.paused) {
@@ -180,11 +174,9 @@ function refreshStateFromWallClock() {
   }
 
   timeRemaining = Math.ceil(remainingMs / 1000);
-
-  if (timeRemaining <= 0) {
-    completeSession(); // will chain to next phase
-    return;
-  }
+  // ===========================================================================================
+  // TODO Send message to service worker and complete session/do both.
+  // ===========================================================================================
 
   updateUI(); // do we need to refresh the whole UI or can we just do the timer?
 }
@@ -198,77 +190,48 @@ function startUITimer() {
   }, 1000);
 }
 
-// --- Session lifecycle -----------------------------------------------------
-
-async function startSession(type, durationSeconds) {
-  // Ensure minimum duration for work/custom timers
-  if (type === 'pomodoro' || type === 'custom') {
-    durationSeconds = Math.max(MIN_WORK_SECONDS, durationSeconds);
-  }
-
-  // type: 'pomodoro' (work) or 'shortBreak' (rest) or 'custom'
-  const now = Date.now();
-  const endTime = now + durationSeconds * 1000;
-
-  currentSession = {
-    type,
-    startTime: now,
-    endTime,              // wall-clock end
-    duration: durationSeconds,
-    paused: false
-  };
-
-  isRunning = true;
-  isPaused = false;
-
-  // Keep the overall study "active" across phases
-  await chrome.storage.local.set({ activeSession: true });
-  await persistSession();
-  startUITimer();
-  updateUI();
-
-  // (Optional) notify background
-  try {
-    await chrome.runtime.sendMessage({
-      action: 'SESSION_STARTED',
-      sessionType: type,
-      duration: durationSeconds
-    });
-  } catch (err) { /* no-op */ }
-}
-
 // helpers for durations & phases
 function getWorkDuration() {
   // Enforce minimum on read as well
-  return Math.max(MIN_WORK_SECONDS, settings.pomodoro);
+  return Math.max(MIN_WORK_DURATION, settings.workDuration);
 }
 
 function getRestDuration() { 
-  return settings.shortBreak; 
+  return settings.breakDuration; 
 }
 
-async function startWork() {
-  phase = 'work';
-  // await persistSession(); // writes phase
-  await startSession('pomodoro', getWorkDuration());
-}
-
-async function startRest() {
-  phase = 'rest';
-  await persistSession(); // writes phase
-  await startSession('shortBreak', getRestDuration());
-}
-
-function startCustomSession() {
+// ===========================================================================================
+// TODO Send message to service worker and not start work
+// ===========================================================================================
+async function startSession() {
   // start a Work phase based on the current slider, clamped to minimum
   const workSlider = document.getElementById('workRange');
-  if (workSlider) {
-    const minutes = parseInt(workSlider.value, 10);
-    settings.pomodoro = Math.max(MIN_WORK_SECONDS, minutes * 60);
+  if (!workSlider) {
+    console.log("No slider found, using default time.")
   } else {
-    settings.pomodoro = Math.max(MIN_WORK_SECONDS, settings.pomodoro);
+    const minutes = parseInt(workSlider.value, 10);
+    settings.workDuration = Math.max(MIN_WORK_DURATION, minutes);
+    console.log("Starting session with custome time:", settings.workDuration);
   }
-  startWork();
+
+  let duration = (phase === "work") ? settings.workDuration : settings.breakDuration;
+  let currentSession = {
+    startTime: Date.now(),
+    endTime: now + (duration * 60000),
+    duration: duration,
+    paused: false,
+    settings: settings
+  };
+
+  try {
+    await chrome.storage.local.set({ currentSession: currentSession, phase: phase, activeSession: true });
+  } catch (error) {
+    console.error('Failed to save session data:', error);
+  }
+
+  chrome.runtime.sendMessage({
+      action: 'START-SESSION'
+  });
 }
 
 async function stopTimer() {
@@ -277,7 +240,7 @@ async function stopTimer() {
   isPaused = false;
   if (timer) clearInterval(timer);
   timer = null;
-  currentSession = null;
+  session = null;
   timeRemaining = 0;
 
   await chrome.storage.local.set({ activeSession: false });
@@ -287,49 +250,6 @@ async function stopTimer() {
   try {
     await chrome.runtime.sendMessage({ action: 'SESSION_ENDED' });
   } catch (err) { /* no-op */ }
-}
-
-// When a single phase finishes → open new tab and auto-queue the next phase
-async function completeSession() {
-  if (timer) clearInterval(timer);
-  timer = null;
-  isRunning = false;
-  isPaused = false;
-
-  // Choose a message by phase
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
-  let title, msg;
-  if (phase === 'work') {
-    title = 'Focus Session Complete!';
-    msg = pick(workCompleteMsgs);
-  } else {
-    title = 'Rest Complete!';
-    msg = pick(restCompleteMsgs);
-  }
-
-  // Open new tab instead of notification
-  try {
-    await chrome.runtime.sendMessage({
-      action: 'OPEN_SESSION_COMPLETE_TAB',
-      phase: phase,
-      message: msg,
-      title: title
-    });
-  } catch (err) {
-    console.log('Could not open session complete tab:', err);
-  }
-
-  // Clear finished session but KEEP activeSession true (we're chaining)
-  currentSession = null;
-  await persistSession();
-  updateUI();
-
-  // Chain to next phase immediately
-  if (phase === 'work') {
-    await startRest();
-  } else {
-    await startWork();
-  }
 }
 
 // --- Pause/Resume ----------------------------------------------------------
@@ -375,20 +295,12 @@ function updateUI() {
 
 function updateTimerDisplay() {
   const timerDisplay = document.getElementById('timerDisplay');
-  const sessionTypeDisplay = document.getElementById('sessionType');
   const progressFill = document.getElementById('progressFill');
 
   if (timerDisplay) {
     const fallback = (phase === 'rest') ? getRestDuration() : getWorkDuration();
     const time = (currentSession ? timeRemaining : fallback);
     timerDisplay.textContent = formatTime(time);
-  }
-
-  if (sessionTypeDisplay) {
-    // Show explicit label by phase
-    sessionTypeDisplay.textContent = (phase === 'rest')
-      ? '☕ Rest Time'
-      : '🍅 Focus Session';
   }
 
   if (progressFill && currentSession) {

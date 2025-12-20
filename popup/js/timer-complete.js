@@ -51,6 +51,6 @@ function setupAnimation() {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     updatePageContent();
-    setupAutoClose();
+    // setupAutoClose();
     setupAnimation();
 });
