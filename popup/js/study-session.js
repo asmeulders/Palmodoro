@@ -152,9 +152,18 @@ function setupEventListeners() {
       updateUI();
     }
   });
+
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    console.log("Study session received a message:", message);
+    if (message.action === "TIMER_FINISHED") {
+      console.log("Timer finished, updating UI.")
+      updateUI();
+    }
+  })
 }
 
 function refreshStateFromWallClock() {
+  console.log(currentSession);
   if (!currentSession) {
     isRunning = false;
     isPaused = false;
@@ -248,7 +257,7 @@ async function startSession() {
 async function stopTimer() {
   // terminate the whole loop
   try {
-    let response = await chrome.runtime.sendMessage({ action: 'SESSION_ENDED' });
+    let response = await chrome.runtime.sendMessage({ action: 'SESSION_TERMINATED' });
     isRunning = response.isRunning;
     isPaused = response.isPaused;
     isActive = response.isActive;
@@ -315,6 +324,7 @@ function updateTimerDisplay() {
     timerDisplay.textContent = formatTime(time);
   }
 
+  console.log(progressFill && currentSession, progressFill, currentSession);
   if (progressFill && currentSession) {
     const elapsed = currentSession.duration - timeRemaining;
     const pct = (elapsed / currentSession.duration) * 100;
@@ -328,11 +338,11 @@ function updateSessionControls() {
   const activeSection = document.getElementById('isActiveSection');
   const starterSection = document.getElementById('sessionStarterSection');
   const pauseBtn = document.getElementById('pauseSession');
-
+  console.log("Active:", isActive);
   if (isActive) {
     if (activeSection) activeSection.style.display = 'block';
     if (starterSection) starterSection.style.display = 'none';
-    if (pauseBtn) pauseBtn.innerHTML = isPaused ? '▶️ Resume' : '⏸️ Pause';
+    if (pauseBtn) pauseBtn.innerHTML = isPaused ? 'Resume' : 'Pause';
   } else {
     if (activeSection) activeSection.style.display = 'none';
     if (starterSection) starterSection.style.display = 'block';

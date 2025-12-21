@@ -251,9 +251,14 @@ async function completeSession() {
   let currentSession = result.currentSession;
   let phase = result.phase;
   
-  // Open new tab instead of notification
-  await showCompletionTab(phase);
-  // updateUI();
+  // Open new tab instead of notification - do we want a notification?
+  //await showCompletionTab(phase);
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/sched_tasks.png',
+    title: 'Time is up!',
+    message: 'Your Pomodoro session has finished.'
+  });
 
   if (phase === 'work') {
     console.log("Starting rest.");
@@ -337,7 +342,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  if (request.action === "SESSION_ENDED") {
+  if (request.action === "SESSION_TERMINATED") {
     chrome.alarms.clear('pomodoroTimer')
       .then((result) => {
         console.log('Successfully stopped timer');
@@ -381,6 +386,13 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "pomodoroTimer") {
     console.log("Timer finished.");
     await completeSession();
+    try {
+      await chrome.runtime.sendMessage({ action: "TIMER_FINISHED" });
+
+    } catch(e) {
+      console.log("Error sending message - likely that other end doesn't exist:", e);
+    }
+
   }
 });
 
