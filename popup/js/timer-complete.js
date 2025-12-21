@@ -19,12 +19,14 @@ function updatePageContent() {
         messageEl.textContent = 'Excellent work! Time to take a well-deserved break.';
         nextPhase.textContent = 'It\'s Break Time! 🌟';
         //nextTimer.textContent = '5:00'; // Default break time
-    } else {
+    } else if (completedPhase === 'rest') {
         phaseIcon.textContent = '⏰';
         title.textContent = 'Break Complete!';
         messageEl.textContent = 'Refreshed and ready? Let\'s get back to focused work!';
         nextPhase.textContent = 'Time to Work Again! 💪';
         //nextTimer.textContent = '25:00'; // Default work time
+    } else {
+        console.error("Unknown phase:", completedPhase);
     }
 }
 
@@ -51,6 +53,6 @@ function setupAnimation() {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     updatePageContent();
-    // setupAutoClose();
+    setupAutoClose();
     setupAnimation();
 });

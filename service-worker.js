@@ -234,33 +234,29 @@ function getDomainFromUrl(url) {
 // ===========================================================================================
 // Background Timer
 // ===========================================================================================
-async function setTimer() {
-  let currentSession = await chrome.storage.local.get(['currentSession']);  
-  console.log("currentSession:", currentSession, currentSession.duration);
-  chrome.alarms.create("pomodoroTimer", { delayInMinutes: currentSession.duration});
-
-  // TODO: move these to callback
-  // let isRunning = true;
-  // let isPaused = false;
-  //startUITimer();
-  //updateUI();
+async function setTimer(duration) {
+  try {
+    await chrome.alarms.create("pomodoroTimer", { delayInMinutes: duration});
+    console.log("Set pomodor timer for duration:", duration);
+  } catch(e) {
+    console.error("Failed to set timer:", e);
+  }
 }
 
 // When a single phase finishes -> open new tab and auto-queue the next phase
 async function completeSession() {
   // isRunning = false;
   // isPaused = false;
-  currentSession, phase = await chrome.storage.local.get(['currentSession', 'phase']);
-  
+  const result = await chrome.storage.local.get(['currentSession', 'phase']);
+  let currentSession = result.currentSession;
+  let phase = result.phase;
   
   // Open new tab instead of notification
   await showCompletionTab(phase);
-  // currentSession = null;
-  // await persistSession();
   // updateUI();
 
-  // Chain to next phase immediately
   if (phase === 'work') {
+    console.log("Starting rest.");
     phase = 'rest';
     currentSession.duration = currentSession.settings.restDuration;
     try {
@@ -268,9 +264,9 @@ async function completeSession() {
     } catch (error) {
       console.error('Failed to save session data:', error);
     }
-    setTimer()
-
+    setTimer(currentSession.duration);
   } else {
+    console.log("Starting work.");
     phase = 'work';
     currentSession.duration = currentSession.settings.workDuration;
     try {
@@ -278,7 +274,7 @@ async function completeSession() {
     } catch (error) {
       console.error('Failed to save session data:', error);
     }
-    setTimer()
+    setTimer(currentSession.duration);
   }
 }
 
@@ -305,9 +301,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'askStudyQuestion') {
     console.log('Handling study question:', request.question);
     handleStudyQuestion(request.question)
-      .then(answer => {
-        console.log('Got answer from Professor StudyBot:', answer.substring(0, 100) + '...');
-        sendResponse({ success: true, answer });
+      .then((result) => {
+        console.log('Got answer from Professor StudyBot:', result.substring(0, 100) + '...');
+        sendResponse({ success: true, result });
       })
       .catch(error => {
         console.error('Study question error:', error);
@@ -329,13 +325,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === "START-SESSION") {
-    setTimer()
-      .then(answer => {
+    setTimer(request.duration)
+      .then((result) => {
         console.log('Successfully started session');
-        sendResponse({ success: true, answer });
+        sendResponse({ success: true, isRunning: true, isPaused: false });
       })
       .catch(error => {
         console.error('Session initialization error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (request.action === "SESSION_ENDED") {
+    chrome.alarms.clear('pomodoroTimer')
+      .then((result) => {
+        console.log('Successfully stopped timer');
+        sendResponse({ success: true, isRunning: false, isPaused: false, isActive: false });
+      })
+      .catch(error => {
+        console.error('Error stopping timer:', error);
         sendResponse({ success: false, error: error.message });
       });
     return true;

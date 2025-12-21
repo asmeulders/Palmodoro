@@ -5,6 +5,7 @@ let currentSession = null; // { type, startTime, endTime, duration, paused, paus
 let timer = null;          // UI repaint interval only
 let isRunning = false;
 let isPaused = false;
+let isActive = false;
 let timeRemaining = 0;     // seconds
 
 
@@ -12,7 +13,7 @@ let timeRemaining = 0;     // seconds
 // TODO: Move this functionality back to the service worker because this must run in the background.
 // ====================================================================================================
 // Work/Rest phase tracking
-let phase = 'work'; // 'work' | 'rest'
+let phase = null; // 'work' | 'rest'
 
 // Fun messages
 const workCompleteMsgs = [
@@ -41,21 +42,9 @@ async function init() {
   try {
     await loadSettings();
     await loadSessionData();   // reconstruct state from storage
+    console.log(currentSession);
     setupEventListeners();
-    // updateUI();
-
-    // Keep UI in sync if another context changes currentSession
-    chrome.storage.onChanged.addListener((changes, area) => {
-      if (area !== 'local') return;
-      if (changes.currentSession) {
-        currentSession = changes.currentSession.newValue || null;
-        refreshStateFromWallClock();
-      }
-      if (changes.phase) {
-        phase = changes.phase.newValue || 'work';
-        updateUI();
-      }
-    });
+    updateUI();
   } catch (error) {
     console.error('Failed to initialize study session manager:', error);
   }
@@ -83,8 +72,11 @@ async function saveSettings() {
 
 async function loadSessionData() {
   try {
-    const data = await chrome.storage.local.get(['currentSession', 'phase']);
+    const data = await chrome.storage.local.get(['currentSession', 'phase', 'isRunning', 'isPaused', 'isActive']);
     if (data.phase) phase = data.phase;
+    isRunning = data.isRunning;
+    isPaused = data.isPaused;
+    isActive = data.isActive;
 
     if (data.currentSession) {
       currentSession = data.currentSession;
@@ -127,12 +119,11 @@ function setupEventListeners() {
     restTime.textContent = restSlider.value;
     restSlider.addEventListener('input', (event) => {
       restTime.textContent = event.target.value;
-      settings.restDuration = parseInt(event.target.value, 10) * 60;
+      settings.restDuration = parseInt(event.target.value, 10);
       saveSettings();
     });
   }
 
-  // Start button (HTML id is "startTimer")
   const startBtn = document.getElementById('startTimer');
   if (startBtn) {
     startBtn.addEventListener('click', () => startSession());
@@ -148,6 +139,19 @@ function setupEventListeners() {
   if (endSessionBtn) {
     endSessionBtn.addEventListener('click', () => stopTimer());
   }
+
+  // Keep UI in sync if another context changes currentSession
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.currentSession) {
+      currentSession = changes.currentSession.newValue || null;
+      refreshStateFromWallClock();
+    }
+    if (changes.phase) {
+      phase = changes.phase.newValue || 'work';
+      updateUI();
+    }
+  });
 }
 
 function refreshStateFromWallClock() {
@@ -182,6 +186,7 @@ function refreshStateFromWallClock() {
 }
 
 function startUITimer() {
+  console.log("UI Timer");
   if (timer) clearInterval(timer);
   timer = setInterval(() => {
     if (!isPaused) {
@@ -211,46 +216,50 @@ async function startSession() {
   } else {
     const minutes = parseInt(workSlider.value, 10);
     settings.workDuration = Math.max(MIN_WORK_DURATION, minutes);
-    console.log("Starting session with custome time:", settings.workDuration);
+    console.log("Starting session with custom time:", settings.workDuration);
   }
-
-  let duration = (phase === "work") ? settings.workDuration : settings.restDuration;
-  console.log("duration:", duration);
+  isActive = true;
+  phase = 'work';
+  let duration = settings.workDuration;
   const now = Date.now()
   let currentSession = {
     startTime: now,
     endTime: now + (duration * 60000),
     duration: duration,
-    paused: false,
     settings: settings
   };
 
   try {
-    await chrome.storage.local.set({ currentSession: currentSession, phase: phase, activeSession: true });
+    await chrome.storage.local.set({ currentSession: currentSession, phase: phase, isActive: true });
   } catch (error) {
     console.error('Failed to save session data:', error);
   }
-
-  chrome.runtime.sendMessage({
-      action: 'START-SESSION'
+  console
+  let response = await chrome.runtime.sendMessage({
+      action: 'START-SESSION',
+      duration: duration
   });
+  isPaused = response.isPaused;
+  isRunning = response.isRunning;
+  startUITimer();
+  updateUI();
 }
 
 async function stopTimer() {
   // terminate the whole loop
-  isRunning = false;
-  isPaused = false;
-  if (timer) clearInterval(timer);
-  timer = null;
-  session = null;
-  timeRemaining = 0;
-
-  await chrome.storage.local.set({ activeSession: false });
-  await persistSession(); // writes null currentSession, keeps last phase value
-  updateUI();
-
   try {
-    await chrome.runtime.sendMessage({ action: 'SESSION_ENDED' });
+    let response = await chrome.runtime.sendMessage({ action: 'SESSION_ENDED' });
+    isRunning = response.isRunning;
+    isPaused = response.isPaused;
+    isActive = response.isActive;
+    if (timer) clearInterval(timer);
+    timer = null;
+    currentSession = null;
+    timeRemaining = 0;
+    phase = null;
+    await chrome.storage.local.set({ isActive: isActive, currentSession: currentSession, phase: phase });
+    await persistSession(); // writes null currentSession, keeps last phase value
+    updateUI();
   } catch (err) { /* no-op */ }
 }
 
@@ -301,7 +310,8 @@ function updateTimerDisplay() {
 
   if (timerDisplay) {
     const fallback = (phase === 'rest') ? getRestDuration() : getWorkDuration();
-    const time = (currentSession ? timeRemaining : fallback);
+    const time = (currentSession ? timeRemaining : fallback); // look here first
+    // ===========================================================
     timerDisplay.textContent = formatTime(time);
   }
 
@@ -315,12 +325,11 @@ function updateTimerDisplay() {
 }
 
 function updateSessionControls() {
-  const activeSection = document.getElementById('activeSessionSection');
+  const activeSection = document.getElementById('isActiveSection');
   const starterSection = document.getElementById('sessionStarterSection');
   const pauseBtn = document.getElementById('pauseSession');
 
-  const showActive = !!currentSession && (isRunning || isPaused);
-  if (showActive) {
+  if (isActive) {
     if (activeSection) activeSection.style.display = 'block';
     if (starterSection) starterSection.style.display = 'none';
     if (pauseBtn) pauseBtn.innerHTML = isPaused ? '▶️ Resume' : '⏸️ Pause';
