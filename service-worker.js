@@ -188,15 +188,12 @@ async function distractionAlertMessage(tab, domain) {
 
 // Tab monitoring for distraction detection
 async function handleTabSwitch(tabId) {
-  // ============================================================================
-  // TODO: 
-  // - Move checking domain logic to distraction-popup.js
-  // ============================================================================
   try {
-    // Only monitor during work sessions
-    // if (!isRunning || phase !== 'work') {
-    //   return;
-    // }
+    let { phase } = await chrome.storage.local.get(['phase']);
+    if (phase !== 'work') {
+      console.log("Not checking for distraction - not in a work session.")
+      return;
+    }
     const tab = await chrome.tabs.get(tabId);
     if (!validSite(tab)) return;
     const domain = getDomainFromUrl(tab.url);
@@ -229,8 +226,6 @@ function getDomainFromUrl(url) {
   }
 }
 
-
-
 // ===========================================================================================
 // Background Timer
 // ===========================================================================================
@@ -245,8 +240,6 @@ async function setTimer(duration) {
 
 // When a single phase finishes -> open new tab and auto-queue the next phase
 async function completeSession() {
-  // isRunning = false;
-  // isPaused = false;
   const result = await chrome.storage.local.get(['currentSession', 'phase']);
   let currentSession = result.currentSession;
   let phase = result.phase;
@@ -379,13 +372,27 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "pomodoroTimer") {
     console.log("Timer finished.");
     let duration = await completeSession();
-    let { currentSession } = await chrome.storage.local.get(['currentSession']);
+    let queryOptions = { active: true, lastFocusedWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    let { currentSession, phase } = await chrome.storage.local.get(['currentSession', 'phase']);
+    if ( phase === 'work' && tab) {
+      let domain = getDomainFromUrl(tab.url);
+      chrome.storage.local.get(["workDomains"], (result) => {
+      const domains = result.workDomains || [];
+      
+      const isAllowed = domains.includes(domain);
+
+      if (!isAllowed) {
+        console.log("Blocked site.");
+        distractionAlertMessage(tab, domain);
+      }
+    }); 
+    }
     try {
       await chrome.runtime.sendMessage({ action: "TIMER_FINISHED", duration: duration , currentSession: currentSession});
     } catch(e) {
       console.log("Error sending message - likely that other end doesn't exist:", e);
     }
-
   }
 });
 

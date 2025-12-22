@@ -1,41 +1,17 @@
-// Study Session JavaScript functionality — wall-clock based, survives popup close
-// Now alternates Work ↔ Rest with random phase-complete messages
-// Enforces a minimum work duration of 10 seconds
-let currentSession = null; // { type, startTime, endTime, duration, paused, pausedAt? }
+let currentSession = null; 
 let timer = null;          // UI repaint interval only
 let isRunning = false;
 let isPaused = false;
 let isActive = false;
 let timeRemaining = 0;     // seconds
-
-
-// ====================================================================================================
-// TODO: Move this functionality back to the service worker because this must run in the background.
-// ====================================================================================================
-// Work/Rest phase tracking
 let phase = null; // 'work' | 'rest'
 
-// Fun messages
-const workCompleteMsgs = [
-    "Great job! Time to recharge.",
-    "Nice focus session—grab some water!",
-    "You crushed it. Stretch time!",
-    "Deep breath—enjoy a short break.",
-  ];
-const restCompleteMsgs = [
-    "Break’s over—let’s dive back in!",
-    "Refreshed? Back to it!",
-    "You’ve got this—time to focus.",
-    "Small steps, big wins—let’s go!",
-  ];
-
 let settings = {
-    workDuration: 25,  // work (minutes)
-    restDuration: 5, // rest (minutes)
-    notifications: true
-  };
+  workDuration: 25,  // work (minutes)
+  restDuration: 5, // rest (minutes)
+  notifications: true
+};
 
-// NEW: minimum work duration
 const MIN_WORK_DURATION = 1;
 
 async function init() {
