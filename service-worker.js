@@ -93,7 +93,7 @@ async function askGemini(question) {
     return 'Gemini API key not configured. Please set it up first.';
   }
 
-  console.log('🎓 Professor StudyBot is analyzing your question:', question);
+  console.log('Professor StudyBot is analyzing your question:', question);
 
   try {
     // Track study session progress
@@ -209,7 +209,7 @@ async function handleTabSwitch(tabId) {
       const isAllowed = domains.includes(domain);
 
       if (!isAllowed) {
-        console.log("Blocked!");
+        console.log("Blocked site.");
         distractionAlertMessage(tab, domain);
       }
     }); 
@@ -251,8 +251,6 @@ async function completeSession() {
   let currentSession = result.currentSession;
   let phase = result.phase;
   
-  // Open new tab instead of notification - do we want a notification?
-  //await showCompletionTab(phase);
   chrome.notifications.create({
     type: 'basic',
     iconUrl: 'icons/sched_tasks.png',
@@ -264,33 +262,28 @@ async function completeSession() {
     console.log("Starting rest.");
     phase = 'rest';
     currentSession.duration = currentSession.settings.restDuration;
+    currentSession.startTime = currentSession.endTime;
+    currentSession.endTime = currentSession.startTime + currentSession.duration * 60000;
     try {
       await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
     } catch (error) {
       console.error('Failed to save session data:', error);
     }
     setTimer(currentSession.duration);
+    return currentSession.duration;
   } else {
     console.log("Starting work.");
     phase = 'work';
     currentSession.duration = currentSession.settings.workDuration;
+    currentSession.startTime = currentSession.endTime;
+    currentSession.endTime = currentSession.startTime + currentSession.duration * 60000;
     try {
       await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
     } catch (error) {
       console.error('Failed to save session data:', error);
     }
     setTimer(currentSession.duration);
-  }
-}
-
-// Show session completion tab
-async function showCompletionTab(phase) {
-  try {
-    const url = chrome.runtime.getURL('./popup/pages/timer-complete.html') + `?phase=${phase}`;
-    await chrome.tabs.create({ url: url });
-    console.log('Completion tab created');
-  } catch (error) {
-    console.error('Failed to create completion tab:', error);
+    return currentSession.duration;
   }
 }
 
@@ -385,10 +378,10 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === "pomodoroTimer") {
     console.log("Timer finished.");
-    await completeSession();
+    let duration = await completeSession();
+    let { currentSession } = await chrome.storage.local.get(['currentSession']);
     try {
-      await chrome.runtime.sendMessage({ action: "TIMER_FINISHED" });
-
+      await chrome.runtime.sendMessage({ action: "TIMER_FINISHED", duration: duration , currentSession: currentSession});
     } catch(e) {
       console.log("Error sending message - likely that other end doesn't exist:", e);
     }

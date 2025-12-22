@@ -42,7 +42,6 @@ async function init() {
   try {
     await loadSettings();
     await loadSessionData();   // reconstruct state from storage
-    console.log(currentSession);
     setupEventListeners();
     updateUI();
   } catch (error) {
@@ -156,14 +155,16 @@ function setupEventListeners() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("Study session received a message:", message);
     if (message.action === "TIMER_FINISHED") {
-      console.log("Timer finished, updating UI.")
+      console.log("Timer finished, updating UI.");
+      timeRemaining = message.duration * 60;
+      currentSession = message.currentSession;
       updateUI();
     }
+    return true;
   })
 }
 
 function refreshStateFromWallClock() {
-  console.log(currentSession);
   if (!currentSession) {
     isRunning = false;
     isPaused = false;
@@ -172,20 +173,17 @@ function refreshStateFromWallClock() {
     return;
   }
 
-  const s = currentSession;
-
   let remainingMs;
-  if (s.paused) {
+  if (isPaused) {
     // freeze remaining time at pause moment
-    remainingMs = Math.max(0, s.endTime - (s.pausedAt || Date.now()));
+    remainingMs = Math.max(0, currentSession.endTime - (currentSession.pausedAt || Date.now()));
     isPaused = true;
     isRunning = false;
   } else {
-    remainingMs = Math.max(0, s.endTime - Date.now());
+    remainingMs = Math.max(0, currentSession.endTime - Date.now());
     isPaused = false;
     isRunning = remainingMs > 0;
   }
-
   timeRemaining = Math.ceil(remainingMs / 1000);
   // ===========================================================================================
   // TODO Send message to service worker and complete session/do both.
@@ -195,7 +193,6 @@ function refreshStateFromWallClock() {
 }
 
 function startUITimer() {
-  console.log("UI Timer");
   if (timer) clearInterval(timer);
   timer = setInterval(() => {
     if (!isPaused) {
@@ -234,6 +231,7 @@ async function startSession() {
   let currentSession = {
     startTime: now,
     endTime: now + (duration * 60000),
+    pausedAt: null,
     duration: duration,
     settings: settings
   };
@@ -243,7 +241,6 @@ async function startSession() {
   } catch (error) {
     console.error('Failed to save session data:', error);
   }
-  console
   let response = await chrome.runtime.sendMessage({
       action: 'START-SESSION',
       duration: duration
@@ -298,7 +295,7 @@ async function resumeTimer() {
   updateTimerDisplay();
 
   const pauseBtn = document.getElementById('pauseSession');
-  if (pauseBtn) pauseBtn.innerHTML = '⏸️ Pause';
+  if (pauseBtn) pauseBtn.innerHTML = 'Pause';
 }
 
 function togglePause() {
@@ -316,22 +313,24 @@ function updateUI() {
 function updateTimerDisplay() {
   const timerDisplay = document.getElementById('timerDisplay');
   const progressFill = document.getElementById('progressFill');
-
+  const sessionType = document.getElementById('sessionType');
+  
   if (timerDisplay) {
     const fallback = (phase === 'rest') ? getRestDuration() : getWorkDuration();
     const time = (currentSession ? timeRemaining : fallback);
     timerDisplay.textContent = formatTime(time);
   }
 
-  console.log("Checking if statement:", !!(progressFill && currentSession), progressFill, currentSession);
   if (!!(progressFill && currentSession)) {
     const elapsed = currentSession.duration * 60 - timeRemaining;
-    console.log("elapsed", elapsed);
     const pct = (elapsed / (currentSession.duration * 60)) * 100;
     progressFill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-    console.log("width:", progressFill.style.width);
   } else if (progressFill) {
     progressFill.style.width = '0%';
+  }
+
+  if (sessionType) {
+    sessionType.textContent = (phase === 'work') ? 'Focus Session' : 'Rest Session';
   }
 }
 
@@ -339,7 +338,7 @@ function updateSessionControls() {
   const activeSection = document.getElementById('isActiveSection');
   const starterSection = document.getElementById('sessionStarterSection');
   const pauseBtn = document.getElementById('pauseSession');
-  // console.log("Active:", isActive);
+
   if (isActive) {
     if (activeSection) activeSection.style.display = 'block';
     if (starterSection) starterSection.style.display = 'none';
