@@ -319,16 +319,17 @@ function updateTimerDisplay() {
 
   if (timerDisplay) {
     const fallback = (phase === 'rest') ? getRestDuration() : getWorkDuration();
-    const time = (currentSession ? timeRemaining : fallback); // look here first
-    // ===========================================================
+    const time = (currentSession ? timeRemaining : fallback);
     timerDisplay.textContent = formatTime(time);
   }
 
-  console.log(progressFill && currentSession, progressFill, currentSession);
-  if (progressFill && currentSession) {
-    const elapsed = currentSession.duration - timeRemaining;
-    const pct = (elapsed / currentSession.duration) * 100;
+  console.log("Checking if statement:", !!(progressFill && currentSession), progressFill, currentSession);
+  if (!!(progressFill && currentSession)) {
+    const elapsed = currentSession.duration * 60 - timeRemaining;
+    console.log("elapsed", elapsed);
+    const pct = (elapsed / (currentSession.duration * 60)) * 100;
     progressFill.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    console.log("width:", progressFill.style.width);
   } else if (progressFill) {
     progressFill.style.width = '0%';
   }
@@ -338,7 +339,7 @@ function updateSessionControls() {
   const activeSection = document.getElementById('isActiveSection');
   const starterSection = document.getElementById('sessionStarterSection');
   const pauseBtn = document.getElementById('pauseSession');
-  console.log("Active:", isActive);
+  // console.log("Active:", isActive);
   if (isActive) {
     if (activeSection) activeSection.style.display = 'block';
     if (starterSection) starterSection.style.display = 'none';
