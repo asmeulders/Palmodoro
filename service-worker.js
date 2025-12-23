@@ -1,5 +1,5 @@
 // StudyFocusManager functionality (inline implementation)
-const geminiApiKey = null;
+let geminiApiKey = null;
 let studyFocusManager = null;
 
 // Study Teacher Configuration
@@ -20,11 +20,8 @@ function getEncouragingPhrase() {
 }
 
 // Enhanced prompt with session context for Study Teacher
-function buildTeacherPrompt(question) {
-  const sessionContext = studySession.questionsAsked > 0 
-    ? `\n\n📊 **SESSION CONTEXT:** This is question #${studySession.questionsAsked + 1} in our study session. Previous subjects covered: ${studySession.subjects.join(', ') || 'None yet'}.`
-    : '\n\n🎯 **SESSION START:** Welcome to our study session!';
-  
+async function buildTeacherPrompt(question) {
+  let { sessionContext } = await chrome.storage.local.get(['sessionContext']);
   return `You are Professor StudyBot 🎓, an experienced and caring academic tutor specializing in helping students truly understand concepts.
 
 🎯 **YOUR MISSION:** Help students LEARN and UNDERSTAND, not just get answers.
@@ -94,19 +91,11 @@ async function askGemini(question) {
   }
 
   console.log('Professor StudyBot is analyzing your question:', question);
-
   try {
-    // Track study session progress
-    if (!studySession.startTime) {
-      studySession.startTime = Date.now();
-      console.log('New study session started!');
-    }
-    studySession.questionsAsked++;
-
     const requestBody = {
       contents: [{
         parts: [{
-          text: buildTeacherPrompt(question)
+          text: await buildTeacherPrompt(question)
         }]
       }]
     };
