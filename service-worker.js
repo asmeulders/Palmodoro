@@ -250,7 +250,7 @@ async function completeSession() {
     type: 'basic',
     iconUrl: 'icons/sched_tasks.png',
     title: 'Time is up!',
-    message: 'Your Pomodoro session has finished.'
+    message: `Your ${phase} session has finished.`
   });
 
   if (phase === 'work') {

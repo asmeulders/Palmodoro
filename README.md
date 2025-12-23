@@ -1,8 +1,10 @@
-# Palmodoro - Your new study assistant! From BostonHacks2025
+# Palmodoro - Your new study assistant!
+
+## BostonHacks2025
 
 Palmodoro is a chrome extension that utilizes the powerful technique of "Pomodoro", incented by Francesco Cirillo to help deal with pressure and maintain a _sustainable_ work effort. (https://www.pomodorotechnique.com/) Additionally, we took inspiration from the palm pilot which set out to be a handheld productivity device before the smart phone.
 
-![Image](images/PalmPilot.jpg)
+<img src="images/PalmPilot.jpg" width="200">
 
 These two philosophies inspired us to make a retro themed chrome extension, along the lines of a 'dumb phone' which would help you stay on top of your work without getting distracted!
 
@@ -45,52 +47,50 @@ These two philosophies inspired us to make a retro themed chrome extension, alon
 
 ### Gemini AI Configuration
 1. **Get API Key**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. **Add to Config**: Update `config.json` with your API key:
+2. **Add to Config**: Rename `example-config.json` to `config.json` and insert your API key:
    ```json
    {
      "geminiApiKey": "YOUR_API_KEY_HERE"
    }
    ```
+3. Uncomment/comment lines in `service-worker.js` to get the response from the API.
+```js
+// response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+//   method: 'POST',
+//   headers: {
+//     'Content-Type': 'application/json'
+//   },
+//   body: JSON.stringify(requestBody)
+// });
+response = '{"candidates": [{"content": {"parts": [{ "text": "Of course, happy to help!"}]}}]}'; // test response for sessionContext. Comment this out and uncomment above when using valid API key
+```
 3. **Reload Extension**: Refresh the extension in Chrome
 
 The extension automatically loads the API key from `config.json` and stores it securely in Chrome storage.
 
 ## Usage Guide
 
-### Starting a Study Session
+### Study Sessions
 1. **Click Extension Icon** in Chrome toolbar
-2. **Select Study Session** (yellow icon)
-3. **Start Work Timer** (25 minutes default)
-4. **Focus on designated work sites** - first site visited becomes "work domain"
-5. **Get distraction alerts** if you navigate to non-work sites
-
-### Using Study Chat
-1. **Open Study Chat** (Gemini icon)
-2. **Ask study-related questions**:
-   - "Explain photosynthesis"
-   - "Help me understand quadratic equations"
-   - "What caused World War I?"
-   - "How do for loops work in Python?"
-3. **Receive guided explanations** with follow-up questions
-4. **Build on previous questions** in the same session
+2. **Select Study Session** (pen and notepad - top middle icon)
+3. **Set Timer** and get to work! (25 minutes default)
+4. **Get distraction alerts** if you navigate to non-work sites
 
 ### Domain Management
 1. **Access Domain Manager** (key icon)
-2. **View current tab information**
-3. **Add/remove work domains**
-4. **Configure allowed sites** for study sessions
+2. **Add/remove work domains** manually or through distraction alerts
 
-### Google Search Integration
-1. **Use search bar** in main popup
-2. **Quick access** to Google search
-3. **Maintains focus** within study workflow
+### Study Chats
+1. **Open Study Chat** (Gemini icon)
+2. **Ask study-related questions**
+3. **Session context** resets each time you enter the chat
 
 ## Technical Architecture
 
 ### Core Components
 - **Service Worker**: `service-worker.js` - Background processing, timer management, AI integration
 - **Popup Interface**: `popup/` - Main user interface and navigation
-- **Content Scripts**: `distraction-alert/` - Tab monitoring and distraction detection
+- **Content Scripts**: `content-scripts/distraction.js` - Sends distraction alert directly to DOM.
 - **AI Integration**: Inline Gemini API implementation with Professor StudyBot persona
 
 ### Key Technologies
@@ -102,15 +102,13 @@ The extension automatically loads the API key from `config.json` and stores it s
 
 
 ### Timer Functionality
-- **Customizable Durations**: Adjustable work/break periods
-- **State Persistence**: Survives browser/extension restarts
-- **Completion Tracking**: Records session completions
-- **Background Monitoring**: Continues timing in background
+- **Customizable Durations**: Adjustable work/break periods (cycles until the session termination by user)
+- **State Persistence**: Survives browser/extension restarts and continues in the background
 
 ### Distraction Detection
-- **Automatic Domain Learning**: Identifies work sites from first visit
+- **Automatic Domain Learning**: Identifies distractions upon webpage load
 - **Real-time Monitoring**: Tracks tab switches during work sessions
-- **Alert System**: Non-intrusive warnings for off-task browsing
+- **Alert System**: Intrusive warnings for off-task browsing keeps you on task
 - **Domain Management**: Manual override and configuration options
 
 ## Development
@@ -130,10 +128,11 @@ cd BostonHacks2025
 
 ### Extension Permissions
 - **tabs**: Tab monitoring for distraction detection
+- **activeTab**: Current tab information access
 - **storage**: Persistent timer and configuration storage
 - **scripting**: Content script injection for alerts
 - **alarms**: Background timer functionality
-- **activeTab**: Current tab information access
+- **notifications**: Alerts for session completion
 
 ## Troubleshooting
 
