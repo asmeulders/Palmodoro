@@ -123,7 +123,7 @@ function setupEventListeners() {
       refreshStateFromWallClock();
     }
     if (changes.phase) {
-      phase = changes.phase.newValue || 'work';
+      phase = changes.phase.newValue || null;
       updateUI();
     }
   });
@@ -161,10 +161,6 @@ function refreshStateFromWallClock() {
     isRunning = remainingMs > 0;
   }
   timeRemaining = Math.ceil(remainingMs / 1000);
-  // ===========================================================================================
-  // TODO Send message to service worker and complete session/do both.
-  // ===========================================================================================
-
   updateUI(); // do we need to refresh the whole UI or can we just do the timer?
 }
 
@@ -187,9 +183,6 @@ function getRestDuration() {
   return settings.restDuration; 
 }
 
-// ===========================================================================================
-// TODO Send message to service worker and not start work
-// ===========================================================================================
 async function startSession() {
   // start a Work phase based on the current slider, clamped to minimum
   const workSlider = document.getElementById('workRange');

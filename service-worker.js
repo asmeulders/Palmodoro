@@ -192,6 +192,7 @@ async function distractionAlertMessage(tab, domain) {
 async function handleTabSwitch(tabId) {
   try {
     let { phase } = await chrome.storage.local.get(['phase']);
+    console.log(phase);
     if (phase !== 'work') {
       console.log("Not checking for distraction - not in a work session.")
       return;
@@ -319,8 +320,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   if (request.action === "START-SESSION") {
     setTimer(request.duration)
-      .then((result) => {
+      .then(async (result) => {
         console.log('Successfully started session');
+        let queryOptions = { active: true, lastFocusedWindow: true };
+        try {
+          let [tab] = await chrome.tabs.query(queryOptions);
+          let { currentSession, phase } = await chrome.storage.local.get(['currentSession', 'phase']);
+          if ( phase === 'work' && tab) {
+            let domain = getDomainFromUrl(tab.url);
+            chrome.storage.local.get(["workDomains"], (result) => {
+            const domains = result.workDomains || [];
+            const isAllowed = domains.includes(domain);
+            if (!isAllowed) {
+              console.log("Blocked site.");
+              distractionAlertMessage(tab, domain);
+            }}); 
+          } 
+        } catch(e) {
+          console.log("Error when starting session:", e);
+        }
         sendResponse({ success: true, isRunning: true, isPaused: false });
       })
       .catch(error => {
@@ -351,7 +369,6 @@ function validSite(tab){
   }
   return true;
 }
-
 
 // Initialize when service worker starts
 initializeStudyFocusManager();
@@ -387,8 +404,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       if (!isAllowed) {
         console.log("Blocked site.");
         distractionAlertMessage(tab, domain);
-      }
-    }); 
+      }}); 
     }
     try {
       await chrome.runtime.sendMessage({ action: "TIMER_FINISHED", duration: duration , currentSession: currentSession});
@@ -398,6 +414,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
+chrome.storage.local.set({ phase: null});
 
 // ===========================
 // TODO: Check alarm state on start up
