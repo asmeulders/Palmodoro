@@ -56,22 +56,18 @@
       <div style="display:flex; justify-content:center; align-items:flex-start; width:100%;">
         <div style="width: 92%; max-width: 520px;">
       <!-- Active Session Display -->
-      <section class="active-session-section" id="activeSessionSection" style="display: none;">
+      <section class="active-session-section" id="isActiveSection" style="display: none;">
         <div class="session-timer">
           <div class="timer-display" id="timerDisplay">25:00</div>
           <div class="session-type" id="sessionType">Focus Session</div>
           <div class="session-controls">
-            <button id="pauseSession" class="timer-control-btn">⏸️ Pause</button>
-            <button id="endSession" class="timer-control-btn danger">⏹️ Terminate</button>
+            <button id="pauseSession" class="timer-control-btn">Pause</button>
+            <button id="endSession" class="timer-control-btn danger">Terminate</button>
           </div>
         </div>
         <div class="session-progress">
           <div class="progress-bar">
             <div class="progress-fill" id="progressFill"></div>
-          </div>
-          <div class="session-stats">
-            <span>Session <span id="currentSessionCount">1</span></span>
-            <span>Distractions: <span id="distractionCount">0</span></span>
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 // StudyFocusManager functionality (inline implementation)
-const geminiApiKey = null;
+let geminiApiKey = null;
 let studyFocusManager = null;
 
 // Study Teacher Configuration
@@ -20,11 +20,8 @@ function getEncouragingPhrase() {
 }
 
 // Enhanced prompt with session context for Study Teacher
-function buildTeacherPrompt(question) {
-  const sessionContext = studySession.questionsAsked > 0 
-    ? `\n\n📊 **SESSION CONTEXT:** This is question #${studySession.questionsAsked + 1} in our study session. Previous subjects covered: ${studySession.subjects.join(', ') || 'None yet'}.`
-    : '\n\n🎯 **SESSION START:** Welcome to our study session!';
-  
+async function buildTeacherPrompt(question) {
+  let { sessionContext } = await chrome.storage.local.get(['sessionContext']);
   return `You are Professor StudyBot 🎓, an experienced and caring academic tutor specializing in helping students truly understand concepts.
 
 🎯 **YOUR MISSION:** Help students LEARN and UNDERSTAND, not just get answers.
@@ -74,12 +71,12 @@ async function loadGeminiApiKey() {
     if (config.geminiApiKey) { // && geminiApiKey.trim()) {
       geminiApiKey = config.geminiApiKey;// .trim();
       await chrome.storage.local.set({ geminiApiKey: geminiApiKey });
-      console.log('🔑 API key loaded from config.json and stored in Chrome storage');
+      console.log('API key loaded from config.json and stored in Chrome storage');
     } else {
-      console.warn('⚠️ No API key found in config.json - Gemini chat will not work');
+      console.warn('No API key found in config.json - Gemini chat will not work');
     }
   } catch (error) {
-    console.error('❌ Error loading Gemini API key:', error);
+    console.error('Error loading Gemini API key:', error);
   }
 }
 
@@ -92,44 +89,48 @@ async function askGemini(question) {
   if (!geminiApiKey) {
     return 'Gemini API key not configured. Please set it up first.';
   }
-
-  console.log('🎓 Professor StudyBot is analyzing your question:', question);
-
+  let sessionContext;
   try {
-    // Track study session progress
-    if (!studySession.startTime) {
-      studySession.startTime = Date.now();
-      console.log('📚 New study session started!');
-    }
-    studySession.questionsAsked++;
+    let data = await chrome.storage.local.get(['sessionContext']);
+    sessionContext = data.sessionContext;
+  } catch(e) {
+    console.log("Error loading sessionContext:", e);
+  }
 
+  console.log('Professor StudyBot is analyzing your question:', question);
+  try {
     const requestBody = {
       contents: [{
         parts: [{
-          text: buildTeacherPrompt(question)
+          text: await buildTeacherPrompt(question)
         }]
       }]
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
+    let response;
+    // response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify(requestBody)
+    // });
+    response = '{"candidates": [{"content": {"parts": [{ "text": "Of course, happy to help!"}]}}]}'; // test response for sessionContext. Comment this out and uncomment above when using valid API key
+    const data = JSON.parse(response);
 
-    console.log('📡 Gemini API response status:', response.status);
+    console.log('Gemini API response status:', response.status); // will be undefined with test
 
-    const data = await response.json();
-    console.log('📄 Gemini API response received');
+    //const data = await response.json();
+    console.log('Gemini API response received');
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       const answer = data.candidates[0].content.parts[0].text;
-      console.log('✅ Professor StudyBot provided an answer!');
+      console.log('Professor StudyBot provided an answer!');
+      sessionContext = sessionContext + "Student Question: " + question + "\nStudy bot answer: " + answer + "\n";
+      await chrome.storage.local.set({ sessionContext : sessionContext });
       return answer;
     } else {
-      console.log('❌ No valid response found');
+      console.log('No valid response found');
       if (data.error) {
         console.log('API Error:', data.error);
         return `API Error: ${data.error.message || 'Unknown error'}`;
@@ -137,7 +138,7 @@ async function askGemini(question) {
       return 'Sorry, I couldn\'t generate a response.';
     }
   } catch (error) {
-    console.error('❌ Gemini API error:', error);
+    console.error('Gemini API error:', error);
     return 'Error connecting to AI service. Please try again.';
   }
 }
@@ -146,29 +147,26 @@ async function askGemini(question) {
 async function initializeStudyFocusManager() {
   try {
     await loadGeminiApiKey();
+    await chrome.storage.local.set({ sessionContext : "Study bot initial message: Hi! I'm your study helper. Ask me anything about your work or studies!\n" });
     studyFocusManager = true; // Just a flag to indicate it's ready
-    console.log('🤖 Study Teacher functionality initialized');
+    console.log('Study Teacher functionality initialized');
   } catch (error) {
-    console.error('❌ Failed to initialize study teacher:', error);
+    console.error('Failed to initialize study teacher:', error);
   }
 }
 
 // Handle study question requests
 async function handleStudyQuestion(question) {
-  console.log('🔄 handleStudyQuestion called with:', question);
+  console.log('handleStudyQuestion called with:', question);
   try {
     const result = await askGemini(question);
-    console.log('🔄 handleStudyQuestion returning answer');
+    console.log('handleStudyQuestion returning answer');
     return result;
   } catch (error) {
-    console.error('🔄 handleStudyQuestion error:', error);
+    console.error('handleStudyQuestion error:', error);
     throw error;
   }
 }
-
-// ===================
-// TIMER FUNCTIONALITY
-// ===================
 
 // Show distraction alert
 async function distractionAlertMessage(tab, domain) {
@@ -192,15 +190,12 @@ async function distractionAlertMessage(tab, domain) {
 
 // Tab monitoring for distraction detection
 async function handleTabSwitch(tabId) {
-  // ============================================================================
-  // TODO: 
-  // - Move checking domain logic to distraction-popup.js
-  // ============================================================================
   try {
-    // Only monitor during work sessions
-    // if (!isRunning || phase !== 'work') {
-    //   return;
-    // }
+    let { phase } = await chrome.storage.local.get(['phase']);
+    if (phase !== 'work') {
+      console.log("Not checking for distraction - not in a work session.")
+      return;
+    }
     const tab = await chrome.tabs.get(tabId);
     if (!validSite(tab)) return;
     const domain = getDomainFromUrl(tab.url);
@@ -213,7 +208,7 @@ async function handleTabSwitch(tabId) {
       const isAllowed = domains.includes(domain);
 
       if (!isAllowed) {
-        console.log("Blocked!");
+        console.log("Blocked site.");
         distractionAlertMessage(tab, domain);
       }
     }); 
@@ -233,14 +228,57 @@ function getDomainFromUrl(url) {
   }
 }
 
-// Show session completion tab
-async function showCompletionTab(phase) {
+// ===========================================================================================
+// Background Timer
+// ===========================================================================================
+async function setTimer(duration) {
   try {
-    const url = chrome.runtime.getURL('./popup/pages/timer-complete.html') + `?phase=${phase}`;
-    await chrome.tabs.create({ url: url });
-    console.log('📄 Completion tab created');
-  } catch (error) {
-    console.error('❌ Failed to create completion tab:', error);
+    await chrome.alarms.create("pomodoroTimer", { delayInMinutes: duration});
+    console.log("Set pomodor timer for duration:", duration);
+  } catch(e) {
+    console.error("Failed to set timer:", e);
+  }
+}
+
+// When a single phase finishes -> open new tab and auto-queue the next phase
+async function completeSession() {
+  const result = await chrome.storage.local.get(['currentSession', 'phase']);
+  let currentSession = result.currentSession;
+  let phase = result.phase;
+  
+  chrome.notifications.create({
+    type: 'basic',
+    iconUrl: 'icons/sched_tasks.png',
+    title: 'Time is up!',
+    message: 'Your Pomodoro session has finished.'
+  });
+
+  if (phase === 'work') {
+    console.log("Starting rest.");
+    phase = 'rest';
+    currentSession.duration = currentSession.settings.restDuration;
+    currentSession.startTime = currentSession.endTime;
+    currentSession.endTime = currentSession.startTime + currentSession.duration * 60000;
+    try {
+      await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
+    } catch (error) {
+      console.error('Failed to save session data:', error);
+    }
+    setTimer(currentSession.duration);
+    return currentSession.duration;
+  } else {
+    console.log("Starting work.");
+    phase = 'work';
+    currentSession.duration = currentSession.settings.workDuration;
+    currentSession.startTime = currentSession.endTime;
+    currentSession.endTime = currentSession.startTime + currentSession.duration * 60000;
+    try {
+      await chrome.storage.local.set({ phase: phase , currentSession: currentSession});
+    } catch (error) {
+      console.error('Failed to save session data:', error);
+    }
+    setTimer(currentSession.duration);
+    return currentSession.duration;
   }
 }
 
@@ -250,46 +288,65 @@ async function showCompletionTab(phase) {
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('📥 Service worker received message:', request);
+  console.log('Service worker received message:', request);
 
   // Study chat functionality
   if (request.action === 'askStudyQuestion') {
-    console.log('🎯 Handling study question:', request.question);
+    console.log('Handling study question:', request.question);
     handleStudyQuestion(request.question)
-      .then(answer => {
-        console.log('✅ Got answer from Professor StudyBot:', answer.substring(0, 100) + '...');
-        sendResponse({ success: true, answer });
+      .then((result) => {
+        console.log('Got answer from Professor StudyBot:', result.substring(0, 100) + '...');
+        sendResponse({ success: true, result });
       })
       .catch(error => {
-        console.error('❌ Study question error:', error);
+        console.error('Study question error:', error);
         sendResponse({ success: false, error: error.message });
       });
-    return true; // Indicates that the response is asynchronous
+    return true; // Asynchronous
   }
 
-  // Legacy support for existing functionality
-  if (request.action === 'OPEN_SESSION_COMPLETE_TAB') {
-    showCompletionTab(request.phase);
-    sendResponse({ success: true });
+  if (request.action === "closeTab") {
+    // sender.tab.id is the ID of the tab that sent the message
+
+    let queryOptions = { active: true, lastFocusedWindow: true };
+    chrome.tabs.query(queryOptions, ([tab]) => {
+      if (tab) {
+        chrome.tabs.remove(tab.id);
+        console.log("Distracting tab closed:", tab.url);
+      }
+    });
+  }
+
+  if (request.action === "START-SESSION") {
+    setTimer(request.duration)
+      .then((result) => {
+        console.log('Successfully started session');
+        sendResponse({ success: true, isRunning: true, isPaused: false });
+      })
+      .catch(error => {
+        console.error('Session initialization error:', error);
+        sendResponse({ success: false, error: error.message });
+      });
     return true;
   }
 
-  if (message.action === "closeTab") {
-        // sender.tab.id is the ID of the tab that sent the message
-
-        let queryOptions = { active: true, lastFocusedWindow: true };
-        chrome.tabs.query(queryOptions, ([tab]) => {
-          if (tab) {
-            chrome.tabs.remove(tab.id);
-            console.log("Distracting tab closed:", tab.url);
-          }
-        });
-    }
+  if (request.action === "SESSION_TERMINATED") {
+    chrome.alarms.clear('pomodoroTimer')
+      .then((result) => {
+        console.log('Successfully stopped timer');
+        sendResponse({ success: true, isRunning: false, isPaused: false, isActive: false });
+      })
+      .catch(error => {
+        console.error('Error stopping timer:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
 });
 
 function validSite(tab){
   if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://')) {
-    console.log('Ignoring restricted browser page:', tab.url);
+    console.log('Ignoring restricted browser page:', tab.url.substring(0,19) + '...');
     return false;
   }
   return true;
@@ -302,13 +359,55 @@ initializeStudyFocusManager();
 
 // Set up tab monitoring for distraction detection
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-  console.log('📑 Tab activated:', activeInfo.tabId);
+  console.log('Tab activated:', activeInfo.tabId);
   await handleTabSwitch(activeInfo.tabId);
 });
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tab.active) {
-    console.log('📑 Tab updated and active:', tabId, tab.url);
+    console.log('Tab updated and active:', tabId, tab.url);
     await handleTabSwitch(tabId);
   }
 });
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === "pomodoroTimer") {
+    console.log("Timer finished.");
+    let duration = await completeSession();
+    let queryOptions = { active: true, lastFocusedWindow: true };
+    let [tab] = await chrome.tabs.query(queryOptions);
+    let { currentSession, phase } = await chrome.storage.local.get(['currentSession', 'phase']);
+    if ( phase === 'work' && tab) {
+      let domain = getDomainFromUrl(tab.url);
+      chrome.storage.local.get(["workDomains"], (result) => {
+      const domains = result.workDomains || [];
+      
+      const isAllowed = domains.includes(domain);
+
+      if (!isAllowed) {
+        console.log("Blocked site.");
+        distractionAlertMessage(tab, domain);
+      }
+    }); 
+    }
+    try {
+      await chrome.runtime.sendMessage({ action: "TIMER_FINISHED", duration: duration , currentSession: currentSession});
+    } catch(e) {
+      console.log("Error sending message - likely that other end doesn't exist:", e);
+    }
+  }
+});
+
+
+// ===========================
+// TODO: Check alarm state on start up
+// ============================
+// async function checkAlarmState() {
+//   const alarm = await chrome.alarms.get("my-alarm");
+
+//   if (!alarm) {
+//     await chrome.alarms.create("my-alarm", { periodInMinutes: 1 });
+//   }
+// }
+
+// checkAlarmState();
