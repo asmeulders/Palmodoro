@@ -1,7 +1,11 @@
-# Palmodoro - Your new study assistant @ BostonHacks2025
+# Palmodoro - Your new study assistant! From BostonHacks2025
 
-A powerful Chrome extension that helps students stay focused during study sessions with AI-powered assistance, distraction management, and Pomodoro timer functionality. 
-(We created the frontend. Did not use a pre-built template out there)
+Palmodoro is a chrome extension that utilizes the powerful technique of "Pomodoro", incented by Francesco Cirillo to help deal with pressure and maintain a _sustainable_ work effort. (https://www.pomodorotechnique.com/) Additionally, we took inspiration from the palm pilot which set out to be a handheld productivity device before the smart phone.
+
+![Image](images/PalmPilot.jpg)
+
+These two philosophies inspired us to make a retro themed chrome extension, along the lines of a 'dumb phone' which would help you stay on top of your work without getting distracted!
+
 ## Features
 
 ### Study Teacher (Professor StudyBot)
@@ -28,12 +32,6 @@ A powerful Chrome extension that helps students stay focused during study sessio
 
 ### Other function - Task Manager
 <img src='https://github.com/asmeulders/BostonHacks2025/blob/main/readmeGif/task_manager.gif' />
-
-### Retro User Interface
-- **Clean Retro Design**: Bold borders, block shadows, and high contrast colors
-- **RainyHearts Font**: Custom typography throughout the interface
-- **No Fancy Effects**: Simple, distraction-free design with minimal animations
-- **Responsive Layout**: Optimized for Chrome extension popup format
 
 ## Installation
 
@@ -102,44 +100,6 @@ The extension automatically loads the API key from `config.json` and stores it s
 - **Chrome Alarms API** for timer functionality
 - **Chrome Tabs API** for distraction detection
 
-## Design Philosophy
-
-### Retro Aesthetic
-- **Bold Borders**: 2-3px solid borders throughout
-- **Block Shadows**: Hard `2px 2px 0px` shadows instead of soft gradients
-- **High Contrast**: Clear color separation for accessibility
-- **Minimal Animations**: Simple hover effects without complex transitions
-- **Monospace Typography**: Technical, computer-like appearance
-
-### Color Palette
-- **Primary Orange**: `#ff6b35` (action buttons)
-- **Deep Blue**: `#004e89` (headers, accents)
-- **Forest Green**: `#2c5530` (success states)
-- **Bright Yellow**: `#f5d216` (warnings)
-- **Cream Background**: `#f7f3e9` (main background)
-
-## Professor StudyBot Features
-
-### Teaching Methodology
-- **Step-by-Step Explanations**: Breaks down complex concepts
-- **Real-World Applications**: Connects theory to practical examples
-- **Guiding Questions**: Uses Socratic method to promote critical thinking
-- **Subject Adaptation**: Adjusts approach based on academic discipline
-
-### Response Structure
-1. **Encouraging Acknowledgment**: Random motivational greeting
-2. **Concept Teaching**: Clear, structured explanation
-3. **Practical Example**: Relatable analogy or application
-4. **Engagement Question**: Follow-up to deepen understanding
-5. **Progress Recognition**: Celebrates learning milestones
-
-### Session Intelligence
-- **Question Tracking**: Counts questions asked in current session
-- **Subject Recognition**: Identifies and tracks topics covered
-- **Context Awareness**: References previous questions when relevant
-- **Learning Continuity**: Maintains educational thread across interactions
-
-## Study Session Analytics
 
 ### Timer Functionality
 - **Customizable Durations**: Adjustable work/break periods
@@ -177,12 +137,6 @@ cd BostonHacks2025
 
 ## Troubleshooting
 
-### Common Issues
-1. **Gemini Not Responding**: Check API key in `config.json`
-2. **Timer Not Persisting**: Verify Chrome storage permissions
-3. **Distraction Alerts Missing**: Check content script permissions
-4. **Styling Issues**: Clear Chrome cache and reload extension
-
 ### Debug Console
 - **Extension Popup**: Right-click popup → "Inspect"
 - **Service Worker**: Chrome Extensions page → "Service Worker" link
@@ -209,6 +163,7 @@ This project is developed for BostonHacks2025 hackathon.
 
 ## Acknowledgments
 
+- Authors: Alexander Smeulders, Andrew Cho, Ethan Cappelleri, Sohan Atluri
 - **Google Gemini AI** for intelligent tutoring capabilities
 - **Chrome Extensions API** for platform foundation
-- **BostonHacks2025** for hackathon opportunity
+- **BostonHacks2025** for the hackathon opportunity
