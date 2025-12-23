@@ -1,10 +1,12 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   const chatContainer = document.getElementById('chat-container');
   const messageInput = document.getElementById('message-input');
   const sendButton = document.getElementById('send-button');
   
   // Auto-focus input field
   messageInput.focus();
+
+  await chrome.storage.local.set({ sessionContext: "Study bot initial message: Hi! I'm your study helper. Ask me anything about your work or studies!\n"});
 
   function addMessage(text, isUser = false) {
     const messageDiv = document.createElement('div');
@@ -32,7 +34,7 @@ document.addEventListener('DOMContentLoaded', function() {
       });
 
       if (response?.success) {
-        addMessage(response.answer);
+        addMessage(response.result);
       } else {
         addMessage('Sorry, I couldn\'t process your question. Please try again.');
       }

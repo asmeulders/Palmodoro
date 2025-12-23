@@ -89,6 +89,13 @@ async function askGemini(question) {
   if (!geminiApiKey) {
     return 'Gemini API key not configured. Please set it up first.';
   }
+  let sessionContext;
+  try {
+    let data = await chrome.storage.local.get(['sessionContext']);
+    sessionContext = data.sessionContext;
+  } catch(e) {
+    console.log("Error loading sessionContext:", e);
+  }
 
   console.log('Professor StudyBot is analyzing your question:', question);
   try {
@@ -100,22 +107,27 @@ async function askGemini(question) {
       }]
     };
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
-    });
+    let response;
+    // response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${geminiApiKey}`, {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify(requestBody)
+    // });
+    response = '{"candidates": [{"content": {"parts": [{ "text": "Of course, happy to help!"}]}}]}'; // test response for sessionContext. Comment this out and uncomment above when using valid API key
+    const data = JSON.parse(response);
 
-    console.log('Gemini API response status:', response.status);
+    console.log('Gemini API response status:', response.status); // will be undefined with test
 
-    const data = await response.json();
+    //const data = await response.json();
     console.log('Gemini API response received');
     
     if (data.candidates && data.candidates[0] && data.candidates[0].content) {
       const answer = data.candidates[0].content.parts[0].text;
       console.log('Professor StudyBot provided an answer!');
+      sessionContext = sessionContext + "Student Question: " + question + "\nStudy bot answer: " + answer + "\n";
+      await chrome.storage.local.set({ sessionContext : sessionContext });
       return answer;
     } else {
       console.log('No valid response found');
@@ -135,6 +147,7 @@ async function askGemini(question) {
 async function initializeStudyFocusManager() {
   try {
     await loadGeminiApiKey();
+    await chrome.storage.local.set({ sessionContext : "Study bot initial message: Hi! I'm your study helper. Ask me anything about your work or studies!\n" });
     studyFocusManager = true; // Just a flag to indicate it's ready
     console.log('Study Teacher functionality initialized');
   } catch (error) {
