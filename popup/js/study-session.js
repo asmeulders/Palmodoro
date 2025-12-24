@@ -235,36 +235,61 @@ async function stopTimer() {
     await chrome.storage.local.set({ isActive: isActive, currentSession: currentSession, phase: phase });
     await persistSession(); // writes null currentSession, keeps last phase value
     updateUI();
-  } catch (err) { /* no-op */ }
+  } catch (err) {
+    console.log("Error stopping timer:", err);
+  }
 }
 
+// ===========================================================================
 // --- Pause/Resume ----------------------------------------------------------
+// ===========================================================================
 
+/**
+ * Pauses timer after user presses pause button.
+ */
 async function pauseTimer() {
-  if (!currentSession || !isRunning || isPaused) return;
-  isPaused = true;
-  isRunning = false;
-  currentSession.paused = true;
-  currentSession.pausedAt = Date.now();
-  await persistSession();
-  updateSessionControls();
+  console.log("Pausing timer...");
+  if (!currentSession || !isRunning || isPaused) return;  
+  try {
+    let response = await chrome.runtime.sendMessage({ action: 'SESSION_PAUSED' });
+    currentSession.pausedAt = Date.now();
+    console.log("...at, ", currentSession.pausedAt);
+    isRunning = response.isRunning; // false
+    isPaused = response.isPaused; // true
+    isActive = response.isActive; // true
+    if (timer) clearInterval(timer);
+    timer = null;
+    await chrome.storage.local.set({ isActive: isActive, currentSession: currentSession, phase: phase });
+    await persistSession(); // writes null currentSession, keeps last phase value
+    updateUI();
+  } catch (err) {
+    console.log("Error pausing timer:", err);
+  }
 }
 
 async function resumeTimer() {
-  if (!currentSession || isRunning || !isPaused) return;
-  const delta = Date.now() - (currentSession.pausedAt || Date.now());
-  currentSession.endTime += delta; // shift end time forward by pause duration
-  currentSession.paused = false;
-  delete currentSession.pausedAt;
-
-  isPaused = false;
-  isRunning = true;
-  await persistSession();
-  startUITimer();
-  updateTimerDisplay();
-
-  const pauseBtn = document.getElementById('pauseSession');
-  if (pauseBtn) pauseBtn.innerHTML = 'Pause';
+  console.log("Resuming timer...");
+  if (!currentSession || isRunning || !isPaused) return;  
+  try {
+    const now = Date.now()
+    const delta = now - (currentSession.pausedAt || now);
+    currentSession.endTime += delta; // shift end time forward by pause duration
+    let duration = (currentSession.endTime - now);
+    duration = Math.ceil(duration / 1000)/60;
+    let response = await chrome.runtime.sendMessage({ action: 'SESSION_RESUMED', duration: duration});
+    console.log("...for duration ", duration);
+    currentSession.pausedAt = null;
+    isRunning = response.isRunning; // true
+    isPaused = response.isPaused; // false
+    isActive = response.isActive; // true
+    startUITimer();
+    updateUI();
+    await chrome.storage.local.set({ isActive: isActive, currentSession: currentSession, phase: phase });
+    await persistSession(); // writes null currentSession, keeps last phase value
+    updateUI();
+  } catch (err) {
+    console.log("Error resuming timer:", err);
+  }
 }
 
 function togglePause() {
