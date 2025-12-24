@@ -348,6 +348,32 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  if (request.action === "SESSION_PAUSED") {
+    chrome.alarms.clear('pomodoroTimer')
+      .then((result) => {
+        console.log('Successfully paused timer');
+        sendResponse({ success: true, isRunning: false, isPaused: true, isActive: true });
+      })
+      .catch(error => {
+        console.error('Error pausing timer:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
+  if (request.action === "SESSION_RESUMED") {
+    setTimer(request.duration)
+      .then((result) => {
+        console.log('Successfully resumed timer for duration:', request.duration);
+        sendResponse({ success: true, isRunning: true, isPaused: false, isActive: true });
+      })
+      .catch(error => {
+        console.error('Error resuming timer:', error);
+        sendResponse({ success: false, error: error.message });
+      });
+    return true;
+  }
+
   if (request.action === "SESSION_TERMINATED") {
     chrome.alarms.clear('pomodoroTimer')
       .then((result) => {
@@ -414,7 +440,15 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
   }
 });
 
-chrome.storage.local.set({ phase: null});
+async function initializeState(){
+  let {isRunning} = await chrome.storage.local.get(['isRunning']);
+  if (!isRunning) {
+    chrome.storage.local.set({ phase: null});
+  }
+}
+
+initializeState()
+
 
 // ===========================
 // TODO: Check alarm state on start up
