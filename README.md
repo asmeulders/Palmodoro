@@ -30,7 +30,7 @@ These two philosophies inspired us to make a retro themed chrome extension, alon
 - **Distraction Alerts**: Warns users when visiting non-work sites during work sessions
 - **Work Domain Persistence**: Remembers designated work sites across sessions
 - **Tab Monitoring**: Real-time tracking of active tabs during study sessions
-<img src='https://github.com/asmeulders/BostonHacks2025/blob/main/readmeGif/TabSwitch.gif' />
+<img src='readmeGif/TabSwitch.gif' />
 
 ### Other function - Task Manager
 <img src='https://github.com/asmeulders/BostonHacks2025/blob/main/readmeGif/task_manager.gif' />
