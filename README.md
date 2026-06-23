@@ -1,7 +1,5 @@
 # Palmodoro - Your new study assistant!
 
-## BostonHacks2025
-
 Palmodoro is a chrome extension that utilizes the powerful technique of "Pomodoro", incented by Francesco Cirillo to help deal with pressure and maintain a _sustainable_ work effort. (https://www.pomodorotechnique.com/) Additionally, we took inspiration from the palm pilot which set out to be a handheld productivity device before the smart phone.
 
 <img src="images/PalmPilot.jpg" width="200">
@@ -156,13 +154,8 @@ cd BostonHacks2025
 - **Custom Themes**: User-configurable color schemes
 - **Plugin System**: Modular feature architecture
 
-## License
-
-This project is developed for BostonHacks2025 hackathon.
-
 ## Acknowledgments
 
 - Authors: Alexander Smeulders, Andrew Cho, Ethan Cappelleri, Sohan Atluri
 - **Google Gemini AI** for intelligent tutoring capabilities
 - **Chrome Extensions API** for platform foundation
-- **BostonHacks2025** for the hackathon opportunity
